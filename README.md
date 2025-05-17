@@ -23,6 +23,16 @@ Within the examples folder, each subdirectory contains a self-contained example 
 - An explanation of the use case (`README.md`)
 - Files that leverage codegen for powerful applications
 
+### Modal Deployments
+
+The repository includes several examples of Modal deployments that integrate with Codegen:
+
+- **Hello World**: A simple example demonstrating basic Modal functionality with Codegen integration
+- **Code Analyzer**: An application that uses Codegen to analyze GitHub repositories
+- **Linear Webhooks**: An application that handles Linear webhooks and uses Codegen to analyze code
+
+You can deploy these examples individually or use the interactive `Deployer.sh` script to deploy multiple examples concurrently. See the [examples README](./examples/README.md) for more details.
+
 ## Learn More
 
 - [Documentation](https://docs.codegen.com)
