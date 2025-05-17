@@ -35,6 +35,19 @@ The [codecov_agent_trigger](examples/codecov_agent_trigger) directory contains a
 - [process_coverage_report.py](examples/codecov_agent_trigger/process_coverage_report.py): Shows how to trigger a Codegen agent when code coverage falls below a threshold.
 - [generate_codecov_agent_prompt.py](examples/codecov_agent_trigger/generate_codecov_agent_prompt.py): Demonstrates how to generate prompts for the Codegen agent.
 
+### 5. Deployments
+
+The [deployments](examples/deployments) directory contains examples of deploying Codegen-powered applications to various platforms:
+
+#### 5.1 Modal Deployments
+
+The [modal_deployments](examples/deployments/modal_deployments) directory contains examples of deploying Codegen applications using Modal, a serverless compute platform:
+
+- [code_analysis_service](examples/deployments/modal_deployments/code_analysis_service): A web service that analyzes GitHub repositories.
+- [pr_review_bot](examples/deployments/modal_deployments/pr_review_bot): A bot that automatically reviews pull requests.
+- [slack_chatbot](examples/deployments/modal_deployments/slack_chatbot): A Slack bot powered by Codegen.
+- [deployer.sh](examples/deployments/modal_deployments/deployer.sh): A script that allows you to select and deploy multiple examples concurrently.
+
 ## Getting Started
 
 To run these examples, you'll need to:
@@ -138,7 +151,31 @@ async def on_pr_created(payload):
 app.run(host="0.0.0.0", port=8000)
 ```
 
+### Deploying a Codegen Application
+
+```bash
+# Navigate to the deployment example directory
+cd examples/deployments/modal_deployments/code_analysis_service
+
+# Set up environment variables
+export CODEGEN_API_TOKEN=your_codegen_token
+export MODAL_TOKEN_ID=your_modal_token_id
+export MODAL_TOKEN_SECRET=your_modal_token_secret
+
+# Deploy the application
+./deploy.sh
+```
+
+Or use the master deployment script to deploy multiple examples:
+
+```bash
+# Navigate to the Modal deployments directory
+cd examples/deployments/modal_deployments
+
+# Run the deployer script
+./deployer.sh
+```
+
 ## Contributing
 
 Have a useful example to share? We'd love to include it! Please see our [Contributing Guide](CONTRIBUTING.md) for instructions.
-
