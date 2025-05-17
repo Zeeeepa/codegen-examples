@@ -134,4 +134,4 @@ threshold = 77  # Modify this value to change the coverage threshold
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests! We welcome contributions to improve the codecov agent trigger functionality. 
+Feel free to submit issues and enhancement requests! We welcome contributions to improve the codecov agent trigger functionality.

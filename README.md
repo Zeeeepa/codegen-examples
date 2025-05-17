@@ -23,6 +23,15 @@ Within the examples folder, each subdirectory contains a self-contained example 
 - An explanation of the use case (`README.md`)
 - Files that leverage codegen for powerful applications
 
+### Available Examples
+
+1. **Agent Tasks** - Examples of using the `Agent` class to create and run AI-powered agents
+2. **Codebase Analysis** - Examples of using the `Codebase` class to analyze and manipulate code
+3. **Custom Functions** - Examples of using the `function` decorator and `CodegenApp` class
+4. **Codecov Agent Trigger** - Example of integrating Codegen with Codecov
+
+For a detailed overview of all examples, see [examples.md](examples.md).
+
 ## Learn More
 
 - [Documentation](https://docs.codegen.com)
