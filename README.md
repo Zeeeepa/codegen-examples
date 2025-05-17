@@ -29,6 +29,8 @@ Within the examples folder, each subdirectory contains a self-contained example 
 2. **Codebase Analysis** - Examples of using the `Codebase` class to analyze and manipulate code
 3. **Custom Functions** - Examples of using the `function` decorator and `CodegenApp` class
 4. **Codecov Agent Trigger** - Example of integrating Codegen with Codecov
+5. **Deployments** - Examples of deploying Codegen-powered applications to various platforms
+   - **Modal Deployments** - Deploy Codegen applications using Modal, a serverless compute platform
 
 For a detailed overview of all examples, see [examples.md](examples.md).
 
