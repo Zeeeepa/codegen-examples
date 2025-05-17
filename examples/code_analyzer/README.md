@@ -22,7 +22,7 @@ Before you begin, ensure you have the following installed:
 1. Install the required dependencies:
 
 ```bash
-pip install modal codegen gitpython pydantic
+pip install modal codegen==0.52.19 gitpython pydantic
 ```
 
 2. Authenticate with Modal:
@@ -84,4 +84,3 @@ The response will include:
 - [Modal Documentation](https://modal.com/docs/guide)
 - [Codegen Documentation](https://docs.codegen.com)
 - [GitPython Documentation](https://gitpython.readthedocs.io/)
-

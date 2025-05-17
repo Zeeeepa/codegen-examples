@@ -8,7 +8,7 @@ import modal
 app = modal.App("hello-world")
 
 # Create an image with Python dependencies
-image = modal.Image.debian_slim().pip_install(["codegen"])
+image = modal.Image.debian_slim().pip_install(["codegen==0.52.19"])
 
 # Define a function that will run on Modal
 @app.function(image=image)

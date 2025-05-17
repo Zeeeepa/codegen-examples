@@ -22,7 +22,7 @@ Before running these examples, ensure you have:
 
 1. Python 3.10+ installed
 2. Modal CLI installed: `pip install modal`
-3. Codegen SDK installed: `pip install codegen`
+3. Codegen SDK installed: `pip install codegen==0.52.19`
 4. A Modal account (sign up at [modal.com](https://modal.com))
 5. A Codegen API key (get one at [codegen.sh/token](https://www.codegen.sh/token))
 
@@ -70,4 +70,3 @@ Each example can also be deployed manually by:
 - [Codegen Documentation](https://docs.codegen.com)
 - [Modal Python SDK](https://github.com/modal-labs/modal-client)
 - [Codegen Python SDK](https://github.com/Zeeeepa/codegen)
-

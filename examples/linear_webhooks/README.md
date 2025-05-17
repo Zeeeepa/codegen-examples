@@ -23,7 +23,7 @@ Before you begin, ensure you have the following:
 1. Install the required dependencies:
 
 ```bash
-pip install modal codegen pydantic
+pip install modal codegen==0.52.19 pydantic
 ```
 
 2. Authenticate with Modal:
@@ -89,4 +89,3 @@ In a real-world application, you would extend this to:
 - [Modal Documentation](https://modal.com/docs/guide)
 - [Codegen Documentation](https://docs.codegen.com)
 - [Linear API Documentation](https://developers.linear.app/docs/graphql/working-with-the-graphql-api)
-

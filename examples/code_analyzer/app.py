@@ -16,7 +16,7 @@ app = modal.App("code-analyzer")
 # Create an image with Python dependencies
 image = modal.Image.debian_slim().pip_install(
     [
-        "codegen>=0.1.0",
+        "codegen==0.52.19",
         "gitpython>=3.1.30",
         "pydantic>=2.0.0",
     ]
@@ -112,4 +112,3 @@ if __name__ == "__main__":
             branch="main"
         )
         print(f"Analysis result: {result}")
-

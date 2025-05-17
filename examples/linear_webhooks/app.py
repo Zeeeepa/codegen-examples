@@ -17,7 +17,7 @@ app = modal.App("linear-webhooks")
 # Create an image with Python dependencies
 image = modal.Image.debian_slim().pip_install(
     [
-        "codegen>=0.1.0",
+        "codegen==0.52.19",
         "pydantic>=2.0.0",
     ]
 )
