@@ -1,0 +1,530 @@
+# Prometheus Alerting Rules for Enterprise CI/CD
+# Comprehensive alerting rules covering application health, infrastructure,
+# security, performance, and business metrics
+
+groups:
+  # ============================================================================
+  # APPLICATION HEALTH ALERTS
+  # ============================================================================
+  
+  - name: application.health
+    interval: 30s
+    rules:
+      - alert: ApplicationDown
+        expr: up{job="enterprise-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+          team: platform
+        annotations:
+          summary: "Application {{ $labels.instance }} is down"
+          description: "Application instance {{ $labels.instance }} in environment {{ $labels.environment }} has been down for more than 1 minute."
+          runbook_url: "https://runbooks.example.com/application-down"
+          dashboard_url: "https://grafana.example.com/d/app-overview"
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(http_requests_total{job="enterprise-app",status=~"5.."}[5m]) /
+            rate(http_requests_total{job="enterprise-app"}[5m])
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          category: reliability
+          team: application
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.instance }} in {{ $labels.environment }}"
+          runbook_url: "https://runbooks.example.com/high-error-rate"
+
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, 
+            rate(http_request_duration_seconds_bucket{job="enterprise-app"}[5m])
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+          team: application
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for {{ $labels.instance }}"
+          runbook_url: "https://runbooks.example.com/high-response-time"
+
+      - alert: LowThroughput
+        expr: rate(http_requests_total{job="enterprise-app"}[5m]) < 10
+        for: 15m
+        labels:
+          severity: warning
+          category: performance
+          team: application
+        annotations:
+          summary: "Low application throughput"
+          description: "Request rate is {{ $value }} req/s for {{ $labels.instance }}, below expected threshold"
+
+  # ============================================================================
+  # INFRASTRUCTURE ALERTS
+  # ============================================================================
+  
+  - name: infrastructure.resources
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: |
+          (
+            100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+          ) > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+          team: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+          runbook_url: "https://runbooks.example.com/high-cpu"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 
+            node_memory_MemTotal_bytes
+          ) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+          team: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+          runbook_url: "https://runbooks.example.com/high-memory"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) /
+            node_filesystem_size_bytes{fstype!="tmpfs"}
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+          team: infrastructure
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value | humanizePercentage }} on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          runbook_url: "https://runbooks.example.com/low-disk-space"
+
+      - alert: NodeDown
+        expr: up{job="kubernetes-nodes"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          category: availability
+          team: infrastructure
+        annotations:
+          summary: "Kubernetes node {{ $labels.instance }} is down"
+          description: "Node {{ $labels.instance }} has been down for more than 5 minutes"
+          runbook_url: "https://runbooks.example.com/node-down"
+
+  # ============================================================================
+  # KUBERNETES ALERTS
+  # ============================================================================
+  
+  - name: kubernetes.cluster
+    interval: 30s
+    rules:
+      - alert: PodCrashLooping
+        expr: |
+          rate(kube_pod_container_status_restarts_total[15m]) * 60 * 15 > 0
+        for: 5m
+        labels:
+          severity: warning
+          category: stability
+          team: platform
+        annotations:
+          summary: "Pod {{ $labels.pod }} is crash looping"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is restarting frequently"
+          runbook_url: "https://runbooks.example.com/pod-crash-loop"
+
+      - alert: PodNotReady
+        expr: |
+          kube_pod_status_ready{condition="false"} == 1
+        for: 10m
+        labels:
+          severity: warning
+          category: availability
+          team: platform
+        annotations:
+          summary: "Pod {{ $labels.pod }} not ready"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been not ready for more than 10 minutes"
+
+      - alert: DeploymentReplicasMismatch
+        expr: |
+          kube_deployment_spec_replicas != kube_deployment_status_replicas_available
+        for: 15m
+        labels:
+          severity: warning
+          category: deployment
+          team: platform
+        annotations:
+          summary: "Deployment {{ $labels.deployment }} has mismatched replicas"
+          description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has {{ $labels.spec_replicas }} desired but {{ $labels.available_replicas }} available"
+
+      - alert: HorizontalPodAutoscalerNotWorking
+        expr: |
+          kube_hpa_status_condition{condition="false", status="true"} == 1
+        for: 15m
+        labels:
+          severity: warning
+          category: autoscaling
+          team: platform
+        annotations:
+          summary: "HPA {{ $labels.hpa }} is not working"
+          description: "HPA {{ $labels.hpa }} in namespace {{ $labels.namespace }} is not able to scale"
+
+  # ============================================================================
+  # DATABASE ALERTS
+  # ============================================================================
+  
+  - name: database.postgresql
+    interval: 30s
+    rules:
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+          team: data
+        annotations:
+          summary: "PostgreSQL instance {{ $labels.instance }} is down"
+          description: "PostgreSQL database on {{ $labels.instance }} has been down for more than 1 minute"
+          runbook_url: "https://runbooks.example.com/postgresql-down"
+
+      - alert: PostgreSQLHighConnections
+        expr: |
+          (pg_stat_database_numbackends / pg_settings_max_connections) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+          team: data
+        annotations:
+          summary: "PostgreSQL high connection usage"
+          description: "PostgreSQL connection usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      - alert: PostgreSQLSlowQueries
+        expr: |
+          rate(pg_stat_activity_max_tx_duration[5m]) > 300
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+          team: data
+        annotations:
+          summary: "PostgreSQL slow queries detected"
+          description: "Long running queries detected on {{ $labels.instance }}"
+
+      - alert: PostgreSQLReplicationLag
+        expr: |
+          pg_replication_lag > 30
+        for: 5m
+        labels:
+          severity: warning
+          category: replication
+          team: data
+        annotations:
+          summary: "PostgreSQL replication lag"
+          description: "Replication lag is {{ $value }}s on {{ $labels.instance }}"
+
+  # ============================================================================
+  # REDIS ALERTS
+  # ============================================================================
+  
+  - name: database.redis
+    interval: 30s
+    rules:
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: cache
+          team: data
+        annotations:
+          summary: "Redis instance {{ $labels.instance }} is down"
+          description: "Redis cache on {{ $labels.instance }} has been down for more than 1 minute"
+          runbook_url: "https://runbooks.example.com/redis-down"
+
+      - alert: RedisHighMemoryUsage
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+          team: data
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 1000
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+          team: data
+        annotations:
+          summary: "Redis high connection count"
+          description: "Redis has {{ $value }} connected clients on {{ $labels.instance }}"
+
+  # ============================================================================
+  # SECURITY ALERTS
+  # ============================================================================
+  
+  - name: security.threats
+    interval: 60s
+    rules:
+      - alert: SuspiciousNetworkActivity
+        expr: |
+          rate(node_network_receive_bytes_total[5m]) > 100000000  # 100MB/s
+        for: 10m
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "Suspicious network activity on {{ $labels.instance }}"
+          description: "High network traffic detected: {{ $value | humanize }}B/s on {{ $labels.instance }}"
+          runbook_url: "https://runbooks.example.com/suspicious-network"
+
+      - alert: FailedLoginAttempts
+        expr: |
+          rate(auth_failed_attempts_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "High failed login attempts"
+          description: "{{ $value }} failed login attempts per second detected"
+
+      - alert: SecurityScannerDown
+        expr: up{job="security-scanner"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "Security scanner is down"
+          description: "Security monitoring is not functioning"
+
+      - alert: VulnerabilityDetected
+        expr: security_vulnerabilities_total{severity="critical"} > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: security
+          team: security
+        annotations:
+          summary: "Critical vulnerability detected"
+          description: "{{ $value }} critical vulnerabilities found in the system"
+          runbook_url: "https://runbooks.example.com/vulnerability-response"
+
+  # ============================================================================
+  # CI/CD PIPELINE ALERTS
+  # ============================================================================
+  
+  - name: cicd.pipelines
+    interval: 60s
+    rules:
+      - alert: PipelineFailureRate
+        expr: |
+          (
+            rate(github_actions_workflow_runs_total{conclusion="failure"}[1h]) /
+            rate(github_actions_workflow_runs_total[1h])
+          ) * 100 > 20
+        for: 30m
+        labels:
+          severity: warning
+          category: cicd
+          team: platform
+        annotations:
+          summary: "High CI/CD pipeline failure rate"
+          description: "Pipeline failure rate is {{ $value | humanizePercentage }} over the last hour"
+          runbook_url: "https://runbooks.example.com/pipeline-failures"
+
+      - alert: LongRunningPipeline
+        expr: |
+          github_actions_workflow_run_duration_seconds > 3600  # 1 hour
+        for: 0s
+        labels:
+          severity: warning
+          category: cicd
+          team: platform
+        annotations:
+          summary: "Long running pipeline detected"
+          description: "Pipeline {{ $labels.workflow }} has been running for {{ $value | humanizeDuration }}"
+
+      - alert: DeploymentStuck
+        expr: |
+          time() - deployment_started_timestamp > 1800  # 30 minutes
+        for: 0s
+        labels:
+          severity: critical
+          category: deployment
+          team: platform
+        annotations:
+          summary: "Deployment appears stuck"
+          description: "Deployment to {{ $labels.environment }} has been running for more than 30 minutes"
+          runbook_url: "https://runbooks.example.com/stuck-deployment"
+
+  # ============================================================================
+  # BUSINESS METRICS ALERTS
+  # ============================================================================
+  
+  - name: business.metrics
+    interval: 300s  # 5 minutes
+    rules:
+      - alert: LowUserActivity
+        expr: |
+          rate(user_sessions_total[1h]) < 100
+        for: 30m
+        labels:
+          severity: warning
+          category: business
+          team: product
+        annotations:
+          summary: "Low user activity detected"
+          description: "User session rate is {{ $value }} sessions/hour, below expected threshold"
+
+      - alert: HighUserChurn
+        expr: |
+          (
+            rate(user_churn_total[24h]) /
+            rate(user_registrations_total[24h])
+          ) * 100 > 10
+        for: 1h
+        labels:
+          severity: warning
+          category: business
+          team: product
+        annotations:
+          summary: "High user churn rate"
+          description: "User churn rate is {{ $value | humanizePercentage }} over the last 24 hours"
+
+      - alert: RevenueDropDetected
+        expr: |
+          (
+            rate(revenue_total[1h]) < 
+            rate(revenue_total[1h] offset 24h) * 0.8
+          )
+        for: 2h
+        labels:
+          severity: critical
+          category: business
+          team: business
+        annotations:
+          summary: "Significant revenue drop detected"
+          description: "Revenue is down more than 20% compared to the same time yesterday"
+          runbook_url: "https://runbooks.example.com/revenue-drop"
+
+  # ============================================================================
+  # COST OPTIMIZATION ALERTS
+  # ============================================================================
+  
+  - name: cost.optimization
+    interval: 3600s  # 1 hour
+    rules:
+      - alert: HighInfrastructureCost
+        expr: |
+          aws_billing_estimated_charges_usd > 1000
+        for: 1h
+        labels:
+          severity: warning
+          category: cost
+          team: finops
+        annotations:
+          summary: "High infrastructure costs detected"
+          description: "Current estimated charges are ${{ $value }} for this billing period"
+
+      - alert: UnusedResources
+        expr: |
+          (
+            kube_pod_container_resource_requests_cpu_cores /
+            rate(container_cpu_usage_seconds_total[1h])
+          ) > 2
+        for: 24h
+        labels:
+          severity: info
+          category: cost
+          team: finops
+        annotations:
+          summary: "Underutilized CPU resources detected"
+          description: "Pod {{ $labels.pod }} is using significantly less CPU than requested"
+
+      - alert: StorageCostSpike
+        expr: |
+          increase(aws_s3_bucket_size_bytes[24h]) > 10737418240  # 10GB
+        for: 1h
+        labels:
+          severity: warning
+          category: cost
+          team: finops
+        annotations:
+          summary: "Significant storage growth detected"
+          description: "S3 bucket {{ $labels.bucket }} grew by {{ $value | humanize }}B in the last 24 hours"
+
+  # ============================================================================
+  # COMPLIANCE AND GOVERNANCE ALERTS
+  # ============================================================================
+  
+  - name: compliance.governance
+    interval: 3600s  # 1 hour
+    rules:
+      - alert: ComplianceViolation
+        expr: |
+          aws_config_compliance_by_config_rule{compliance_type!="COMPLIANT"} > 0
+        for: 0s
+        labels:
+          severity: critical
+          category: compliance
+          team: security
+        annotations:
+          summary: "Compliance violation detected"
+          description: "AWS Config rule {{ $labels.config_rule_name }} is not compliant"
+          runbook_url: "https://runbooks.example.com/compliance-violation"
+
+      - alert: UnencryptedData
+        expr: |
+          aws_s3_bucket_encryption_enabled == 0
+        for: 0s
+        labels:
+          severity: critical
+          category: compliance
+          team: security
+        annotations:
+          summary: "Unencrypted S3 bucket detected"
+          description: "S3 bucket {{ $labels.bucket }} does not have encryption enabled"
+
+      - alert: PublicResourceExposed
+        expr: |
+          aws_security_group_ingress_cidr_blocks{cidr_block="0.0.0.0/0"} == 1
+        for: 0s
+        labels:
+          severity: critical
+          category: security
+          team: security
+        annotations:
+          summary: "Public resource exposure detected"
+          description: "Security group {{ $labels.group_id }} allows public access"
+          runbook_url: "https://runbooks.example.com/public-exposure"
+

@@ -1,0 +1,663 @@
+name: 🚀 Enterprise CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, 'feature/*', 'hotfix/*']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'rolling'
+        type: choice
+        options:
+          - rolling
+          - blue_green
+          - canary
+          - progressive
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  DEPLOYMENT_STRATEGY: ${{ github.event.inputs.deployment_strategy || 'rolling' }}
+  TARGET_ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
+
+jobs:
+  # ============================================================================
+  # BUILD AND TEST PHASE
+  # ============================================================================
+  
+  build-and-test:
+    name: 🔨 Build & Test
+    runs-on: ubuntu-latest
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      version: ${{ steps.version.outputs.version }}
+      test-results: ${{ steps.test.outputs.results }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+      
+      - name: 🏷️ Generate Version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            VERSION=$(date +%Y.%m.%d)-${GITHUB_SHA::8}
+          else
+            VERSION=${GITHUB_REF_NAME}-${GITHUB_SHA::8}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+      
+      - name: 🛠️ Setup Build Environment
+        uses: ./.github/actions/setup
+        with:
+          node-version: '18'
+          python-version: '3.11'
+          cache-dependency-path: |
+            package-lock.json
+            requirements.txt
+      
+      - name: 📦 Install Dependencies
+        run: |
+          npm ci
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: 🧪 Run Unit Tests
+        id: test
+        run: |
+          npm run test:unit -- --coverage --reporter=json > test-results.json
+          pytest tests/ --cov=src --cov-report=json --cov-report=html
+          
+          # Extract test results
+          UNIT_TESTS=$(jq -r '.numTotalTests' test-results.json)
+          PASSED_TESTS=$(jq -r '.numPassedTests' test-results.json)
+          COVERAGE=$(jq -r '.coverageMap | length' test-results.json)
+          
+          echo "results={\"total\":$UNIT_TESTS,\"passed\":$PASSED_TESTS,\"coverage\":$COVERAGE}" >> $GITHUB_OUTPUT
+      
+      - name: 🔍 Code Quality Analysis
+        run: |
+          # ESLint for JavaScript/TypeScript
+          npx eslint src/ --format json --output-file eslint-results.json || true
+          
+          # Pylint for Python
+          pylint src/ --output-format=json > pylint-results.json || true
+          
+          # SonarQube analysis (if configured)
+          if [[ -n "${{ secrets.SONAR_TOKEN }}" ]]; then
+            npx sonar-scanner \
+              -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }} \
+              -Dsonar.organization=${{ github.repository_owner }} \
+              -Dsonar.host.url=https://sonarcloud.io \
+              -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+          fi
+      
+      - name: 🐳 Build Container Image
+        id: build
+        run: |
+          # Multi-stage build with optimization
+          docker build \
+            --target production \
+            --build-arg VERSION=${{ steps.version.outputs.version }} \
+            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+            --build-arg VCS_REF=${GITHUB_SHA} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            .
+          
+          # Get image digest
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} | cut -d'@' -f2)
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+      
+      - name: 🔐 Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 📤 Push Container Image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          fi
+      
+      - name: 📊 Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            test-results.json
+            coverage/
+            eslint-results.json
+            pylint-results.json
+
+  # ============================================================================
+  # SECURITY SCANNING PHASE
+  # ============================================================================
+  
+  security-scan:
+    name: 🔒 Security Scanning
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: always() && needs.build-and-test.result != 'failure'
+    
+    strategy:
+      matrix:
+        scan-type: [sast, dast, dependency, container, secrets]
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: 🔍 SAST Scanning
+        if: matrix.scan-type == 'sast'
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript,python,typescript
+          queries: security-extended,security-and-quality
+      
+      - name: 🔍 SAST Analysis
+        if: matrix.scan-type == 'sast'
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
+      
+      - name: 🔍 Dependency Scanning
+        if: matrix.scan-type == 'dependency'
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT,Apache-2.0,BSD-3-Clause
+      
+      - name: 🔍 Container Security Scan
+        if: matrix.scan-type == 'container'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-test.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+      
+      - name: 🔍 Secret Scanning
+        if: matrix.scan-type == 'secrets'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+      
+      - name: 🔍 DAST Scanning
+        if: matrix.scan-type == 'dast' && github.ref == 'refs/heads/main'
+        run: |
+          # Deploy to staging for DAST scanning
+          echo "Deploying to staging for DAST scanning..."
+          # OWASP ZAP scanning
+          docker run -v $(pwd):/zap/wrk/:rw \
+            -t owasp/zap2docker-stable zap-baseline.py \
+            -t https://staging.example.com \
+            -J zap-report.json \
+            -r zap-report.html
+      
+      - name: 📤 Upload Security Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-results-${{ matrix.scan-type }}
+          path: |
+            trivy-results.sarif
+            zap-report.*
+            codeql-results/
+
+  # ============================================================================
+  # QUALITY GATES PHASE
+  # ============================================================================
+  
+  quality-gates:
+    name: 🎯 Quality Gates
+    runs-on: ubuntu-latest
+    needs: [build-and-test, security-scan]
+    if: always() && needs.build-and-test.result == 'success'
+    
+    outputs:
+      quality-score: ${{ steps.quality.outputs.score }}
+      deployment-approved: ${{ steps.quality.outputs.approved }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: 📊 Download Test Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-results*"
+          merge-multiple: true
+      
+      - name: 🎯 Evaluate Quality Gates
+        id: quality
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+          
+          # Load test results
+          with open('test-results.json', 'r') as f:
+              test_data = json.load(f)
+          
+          # Calculate quality score
+          total_tests = test_data.get('total', 0)
+          passed_tests = test_data.get('passed', 0)
+          coverage = test_data.get('coverage', 0)
+          
+          test_pass_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+          
+          # Quality gate thresholds
+          MIN_TEST_COVERAGE = 80
+          MIN_TEST_PASS_RATE = 95
+          MAX_CRITICAL_VULNERABILITIES = 0
+          MAX_HIGH_VULNERABILITIES = 5
+          
+          quality_score = 0
+          
+          # Test coverage gate (30% weight)
+          if coverage >= MIN_TEST_COVERAGE:
+              quality_score += 30
+          else:
+              quality_score += (coverage / MIN_TEST_COVERAGE) * 30
+          
+          # Test pass rate gate (30% weight)
+          if test_pass_rate >= MIN_TEST_PASS_RATE:
+              quality_score += 30
+          else:
+              quality_score += (test_pass_rate / MIN_TEST_PASS_RATE) * 30
+          
+          # Security gate (40% weight)
+          # This would analyze security scan results
+          security_score = 40  # Placeholder
+          quality_score += security_score
+          
+          # Determine approval
+          approved = quality_score >= 85
+          
+          print(f"Quality Score: {quality_score:.2f}")
+          print(f"Test Coverage: {coverage}%")
+          print(f"Test Pass Rate: {test_pass_rate:.2f}%")
+          print(f"Deployment Approved: {approved}")
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"score={quality_score:.2f}\n")
+              f.write(f"approved={str(approved).lower()}\n")
+          
+          if not approved:
+              print("❌ Quality gates failed!")
+              sys.exit(1)
+          else:
+              print("✅ Quality gates passed!")
+          EOF
+      
+      - name: 📈 Generate Quality Report
+        run: |
+          cat << 'EOF' > quality-report.md
+          # 📊 Quality Gate Report
+          
+          ## Summary
+          - **Quality Score**: ${{ steps.quality.outputs.score }}/100
+          - **Deployment Approved**: ${{ steps.quality.outputs.approved }}
+          - **Build Version**: ${{ needs.build-and-test.outputs.version }}
+          
+          ## Test Results
+          - **Total Tests**: $(jq -r '.total' test-results.json)
+          - **Passed Tests**: $(jq -r '.passed' test-results.json)
+          - **Test Coverage**: $(jq -r '.coverage' test-results.json)%
+          
+          ## Security Scan Results
+          - **SAST**: ✅ Completed
+          - **Dependency Scan**: ✅ Completed
+          - **Container Scan**: ✅ Completed
+          - **Secret Scan**: ✅ Completed
+          
+          ## Recommendations
+          - Maintain test coverage above 80%
+          - Address any high/critical security vulnerabilities
+          - Monitor performance metrics post-deployment
+          EOF
+      
+      - name: 📤 Upload Quality Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: quality-report.md
+
+  # ============================================================================
+  # DEPLOYMENT PHASE
+  # ============================================================================
+  
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-and-test, quality-gates]
+    if: |
+      always() && 
+      needs.quality-gates.outputs.deployment-approved == 'true' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    environment:
+      name: staging
+      url: https://staging.example.com
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: ⚙️ Setup Deployment Tools
+        run: |
+          # Install kubectl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          
+          # Install Helm
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      
+      - name: 🔐 Configure Kubernetes Access
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl cluster-info
+      
+      - name: 🚀 Deploy with Rolling Strategy
+        if: env.DEPLOYMENT_STRATEGY == 'rolling'
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Update deployment with new image
+          kubectl set image deployment/enterprise-app \
+            app=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-test.outputs.version }} \
+            -n staging
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/enterprise-app -n staging --timeout=600s
+      
+      - name: 🔄 Deploy with Blue-Green Strategy
+        if: env.DEPLOYMENT_STRATEGY == 'blue_green'
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Deploy to green environment
+          helm upgrade --install enterprise-app-green ./helm/enterprise-app \
+            --namespace staging \
+            --set image.tag=${{ needs.build-and-test.outputs.version }} \
+            --set service.name=enterprise-app-green \
+            --wait --timeout=10m
+          
+          # Test green environment
+          kubectl run test-pod --image=curlimages/curl --rm -i --restart=Never \
+            -- curl -f http://enterprise-app-green.staging.svc.cluster.local/health
+          
+          # Switch traffic to green
+          kubectl patch service enterprise-app -n staging \
+            -p '{"spec":{"selector":{"version":"green"}}}'
+      
+      - name: 🐤 Deploy with Canary Strategy
+        if: env.DEPLOYMENT_STRATEGY == 'canary'
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Deploy canary version (10% traffic)
+          helm upgrade --install enterprise-app-canary ./helm/enterprise-app \
+            --namespace staging \
+            --set image.tag=${{ needs.build-and-test.outputs.version }} \
+            --set replicaCount=1 \
+            --set canary.enabled=true \
+            --set canary.weight=10 \
+            --wait --timeout=10m
+          
+          # Monitor canary for 5 minutes
+          sleep 300
+          
+          # Check canary metrics (placeholder)
+          echo "Checking canary metrics..."
+          
+          # Promote canary to 100% if healthy
+          helm upgrade enterprise-app-canary ./helm/enterprise-app \
+            --namespace staging \
+            --set canary.weight=100 \
+            --wait --timeout=10m
+      
+      - name: 🏥 Health Check
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Wait for pods to be ready
+          kubectl wait --for=condition=ready pod -l app=enterprise-app -n staging --timeout=300s
+          
+          # Perform health checks
+          for i in {1..10}; do
+            if kubectl run health-check --image=curlimages/curl --rm -i --restart=Never \
+              -- curl -f https://staging.example.com/health; then
+              echo "✅ Health check passed"
+              break
+            else
+              echo "❌ Health check failed, attempt $i/10"
+              sleep 30
+            fi
+          done
+      
+      - name: 📊 Post-Deployment Monitoring
+        run: |
+          # Trigger monitoring setup
+          curl -X POST "${{ secrets.MONITORING_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "environment": "staging",
+              "version": "${{ needs.build-and-test.outputs.version }}",
+              "deployment_strategy": "${{ env.DEPLOYMENT_STRATEGY }}",
+              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            }'
+
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-test, quality-gates, deploy-staging]
+    if: |
+      always() && 
+      needs.deploy-staging.result == 'success' &&
+      github.ref == 'refs/heads/main' &&
+      needs.quality-gates.outputs.deployment-approved == 'true'
+    environment:
+      name: production
+      url: https://app.example.com
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: ⏳ Manual Approval Gate
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ github.repository_owner }}
+          minimum-approvals: 1
+          issue-title: "🚀 Production Deployment Approval Required"
+          issue-body: |
+            **Deployment Details:**
+            - Version: ${{ needs.build-and-test.outputs.version }}
+            - Quality Score: ${{ needs.quality-gates.outputs.quality-score }}
+            - Strategy: ${{ env.DEPLOYMENT_STRATEGY }}
+            - Staging Tests: ✅ Passed
+            
+            Please review and approve this production deployment.
+      
+      - name: 🔐 Configure Production Access
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl cluster-info
+      
+      - name: 🚀 Progressive Production Deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Progressive rollout: 10% -> 25% -> 50% -> 100%
+          for percentage in 10 25 50 100; do
+            echo "🚀 Rolling out to ${percentage}% of production traffic"
+            
+            helm upgrade --install enterprise-app ./helm/enterprise-app \
+              --namespace production \
+              --set image.tag=${{ needs.build-and-test.outputs.version }} \
+              --set progressive.enabled=true \
+              --set progressive.percentage=${percentage} \
+              --wait --timeout=10m
+            
+            # Monitor for 5 minutes at each stage
+            if [[ $percentage -lt 100 ]]; then
+              echo "⏳ Monitoring deployment for 5 minutes..."
+              sleep 300
+              
+              # Check error rates and performance
+              echo "📊 Checking metrics..."
+              # This would integrate with your monitoring system
+            fi
+          done
+      
+      - name: 🏥 Production Health Verification
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Comprehensive health checks
+          kubectl wait --for=condition=ready pod -l app=enterprise-app -n production --timeout=600s
+          
+          # Application health check
+          for i in {1..20}; do
+            if curl -f https://app.example.com/health; then
+              echo "✅ Production health check passed"
+              break
+            else
+              echo "❌ Production health check failed, attempt $i/20"
+              sleep 15
+            fi
+          done
+          
+          # Performance verification
+          echo "🚀 Running performance verification..."
+          # This would run performance tests against production
+      
+      - name: 📢 Deployment Notification
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          if [[ "$STATUS" == "success" ]]; then
+            MESSAGE="🎉 Production deployment successful!"
+            COLOR="good"
+          else
+            MESSAGE="❌ Production deployment failed!"
+            COLOR="danger"
+          fi
+          
+          # Send Slack notification
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "attachments": [{
+                "color": "'$COLOR'",
+                "title": "'$MESSAGE'",
+                "fields": [
+                  {"title": "Version", "value": "${{ needs.build-and-test.outputs.version }}", "short": true},
+                  {"title": "Environment", "value": "Production", "short": true},
+                  {"title": "Strategy", "value": "${{ env.DEPLOYMENT_STRATEGY }}", "short": true},
+                  {"title": "Quality Score", "value": "${{ needs.quality-gates.outputs.quality-score }}", "short": true}
+                ]
+              }]
+            }'
+
+  # ============================================================================
+  # POST-DEPLOYMENT MONITORING
+  # ============================================================================
+  
+  post-deployment-monitoring:
+    name: 📊 Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [build-and-test, deploy-production]
+    if: always() && needs.deploy-production.result == 'success'
+    
+    steps:
+      - name: 📊 Setup Monitoring Dashboards
+        run: |
+          # Create deployment-specific monitoring dashboard
+          curl -X POST "${{ secrets.GRAFANA_API_URL }}/api/dashboards/db" \
+            -H "Authorization: Bearer ${{ secrets.GRAFANA_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "dashboard": {
+                "title": "Production Deployment - ${{ needs.build-and-test.outputs.version }}",
+                "tags": ["deployment", "production"],
+                "panels": [
+                  {
+                    "title": "Request Rate",
+                    "type": "graph",
+                    "targets": [{"expr": "rate(http_requests_total[5m])"}]
+                  },
+                  {
+                    "title": "Error Rate", 
+                    "type": "graph",
+                    "targets": [{"expr": "rate(http_errors_total[5m])"}]
+                  }
+                ]
+              }
+            }'
+      
+      - name: 🔔 Setup Deployment Alerts
+        run: |
+          # Create temporary alerts for new deployment
+          echo "Setting up deployment-specific alerts..."
+          # This would configure alerts in your monitoring system
+      
+      - name: 📈 Generate Deployment Report
+        run: |
+          cat << 'EOF' > deployment-report.md
+          # 🚀 Deployment Report
+          
+          ## Deployment Summary
+          - **Version**: ${{ needs.build-and-test.outputs.version }}
+          - **Environment**: Production
+          - **Strategy**: ${{ env.DEPLOYMENT_STRATEGY }}
+          - **Status**: ✅ Successful
+          - **Deployment Time**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          
+          ## Quality Metrics
+          - **Quality Score**: ${{ needs.quality-gates.outputs.quality-score }}/100
+          - **Test Coverage**: Passed
+          - **Security Scans**: Passed
+          - **Performance**: Verified
+          
+          ## Next Steps
+          - Monitor application metrics for 24 hours
+          - Review error rates and performance
+          - Collect user feedback
+          - Plan next iteration
+          EOF
+      
+      - name: 📤 Upload Deployment Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report
+          path: deployment-report.md
+

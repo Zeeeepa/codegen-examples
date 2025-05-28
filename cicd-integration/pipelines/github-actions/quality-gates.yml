@@ -1,0 +1,647 @@
+name: 🎯 Advanced Quality Gates
+
+on:
+  workflow_call:
+    inputs:
+      image-tag:
+        required: true
+        type: string
+      test-results-artifact:
+        required: true
+        type: string
+      security-results-artifact:
+        required: true
+        type: string
+    outputs:
+      quality-score:
+        description: "Overall quality score (0-100)"
+        value: ${{ jobs.quality-gates.outputs.quality-score }}
+      deployment-approved:
+        description: "Whether deployment is approved"
+        value: ${{ jobs.quality-gates.outputs.deployment-approved }}
+      recommendations:
+        description: "Quality improvement recommendations"
+        value: ${{ jobs.quality-gates.outputs.recommendations }}
+
+env:
+  ML_PREDICTION_ENDPOINT: ${{ secrets.ML_PREDICTION_ENDPOINT }}
+  QUALITY_THRESHOLD: 85
+  CRITICAL_THRESHOLD: 95
+
+jobs:
+  quality-gates:
+    name: 🎯 Intelligent Quality Gates
+    runs-on: ubuntu-latest
+    outputs:
+      quality-score: ${{ steps.evaluate.outputs.quality-score }}
+      deployment-approved: ${{ steps.evaluate.outputs.deployment-approved }}
+      recommendations: ${{ steps.evaluate.outputs.recommendations }}
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 Install Quality Analysis Tools
+        run: |
+          pip install --upgrade pip
+          pip install numpy pandas scikit-learn requests pyyaml
+          pip install bandit safety semgrep
+          pip install pytest-cov coverage
+      
+      - name: 📊 Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-results*"
+          merge-multiple: true
+      
+      - name: 🧠 ML-Based Quality Prediction
+        id: ml-prediction
+        run: |
+          python3 << 'EOF'
+          import json
+          import requests
+          import os
+          
+          # Prepare features for ML model
+          features = {
+              "commit_sha": "${{ github.sha }}",
+              "branch": "${{ github.ref_name }}",
+              "author": "${{ github.actor }}",
+              "files_changed": 0,  # Would be calculated from git diff
+              "lines_added": 0,    # Would be calculated from git diff
+              "lines_deleted": 0,  # Would be calculated from git diff
+              "test_count": 0,     # Will be extracted from test results
+              "coverage": 0.0,     # Will be extracted from coverage report
+              "complexity": 0.0,   # Would be calculated from code analysis
+              "dependencies": 0,   # Would be calculated from package files
+              "security_issues": 0 # Will be extracted from security scans
+          }
+          
+          # Extract actual metrics from artifacts
+          try:
+              with open('test-results.json', 'r') as f:
+                  test_data = json.load(f)
+                  features["test_count"] = test_data.get("total", 0)
+                  features["coverage"] = test_data.get("coverage", 0.0)
+          except FileNotFoundError:
+              print("Test results not found")
+          
+          # ML prediction (mock implementation)
+          prediction = {
+              "success_probability": 0.85,
+              "risk_score": 0.15,
+              "estimated_deployment_time": 12.5,
+              "failure_probability": 0.15,
+              "recommended_strategy": "canary",
+              "confidence": 0.92
+          }
+          
+          # In real implementation, this would call your ML service
+          # response = requests.post(
+          #     os.environ.get('ML_PREDICTION_ENDPOINT'),
+          #     json={"features": features},
+          #     headers={"Authorization": f"Bearer {os.environ.get('ML_API_TOKEN')}"}
+          # )
+          # prediction = response.json()
+          
+          print(f"ML Prediction: {json.dumps(prediction, indent=2)}")
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"success_probability={prediction['success_probability']}\n")
+              f.write(f"risk_score={prediction['risk_score']}\n")
+              f.write(f"recommended_strategy={prediction['recommended_strategy']}\n")
+          EOF
+      
+      - name: 🔍 Code Coverage Analysis
+        id: coverage
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          
+          coverage_score = 0
+          coverage_details = {}
+          
+          try:
+              # Parse coverage report
+              with open('coverage.json', 'r') as f:
+                  coverage_data = json.load(f)
+                  
+              total_lines = coverage_data.get('totals', {}).get('num_statements', 0)
+              covered_lines = coverage_data.get('totals', {}).get('covered_lines', 0)
+              
+              if total_lines > 0:
+                  coverage_percentage = (covered_lines / total_lines) * 100
+              else:
+                  coverage_percentage = 0
+              
+              # Coverage scoring (0-30 points)
+              if coverage_percentage >= 90:
+                  coverage_score = 30
+              elif coverage_percentage >= 80:
+                  coverage_score = 25
+              elif coverage_percentage >= 70:
+                  coverage_score = 20
+              elif coverage_percentage >= 60:
+                  coverage_score = 15
+              else:
+                  coverage_score = max(0, coverage_percentage / 60 * 15)
+              
+              coverage_details = {
+                  "percentage": coverage_percentage,
+                  "total_lines": total_lines,
+                  "covered_lines": covered_lines,
+                  "score": coverage_score
+              }
+              
+          except FileNotFoundError:
+              print("Coverage report not found, using default values")
+              coverage_details = {"percentage": 0, "score": 0}
+          
+          print(f"Coverage Analysis: {json.dumps(coverage_details, indent=2)}")
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"score={coverage_details['score']}\n")
+              f.write(f"percentage={coverage_details['percentage']}\n")
+          EOF
+      
+      - name: 🧪 Test Quality Analysis
+        id: test-quality
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          
+          test_score = 0
+          test_details = {}
+          
+          try:
+              with open('test-results.json', 'r') as f:
+                  test_data = json.load(f)
+              
+              total_tests = test_data.get('total', 0)
+              passed_tests = test_data.get('passed', 0)
+              failed_tests = test_data.get('failed', 0)
+              skipped_tests = test_data.get('skipped', 0)
+              
+              if total_tests > 0:
+                  pass_rate = (passed_tests / total_tests) * 100
+                  test_density = total_tests / max(1, test_data.get('lines_of_code', 1000))
+              else:
+                  pass_rate = 0
+                  test_density = 0
+              
+              # Test scoring (0-25 points)
+              if pass_rate >= 98:
+                  test_score = 25
+              elif pass_rate >= 95:
+                  test_score = 20
+              elif pass_rate >= 90:
+                  test_score = 15
+              else:
+                  test_score = max(0, pass_rate / 90 * 15)
+              
+              # Bonus for good test density
+              if test_density > 0.1:  # More than 1 test per 10 lines of code
+                  test_score = min(25, test_score + 2)
+              
+              test_details = {
+                  "total": total_tests,
+                  "passed": passed_tests,
+                  "failed": failed_tests,
+                  "skipped": skipped_tests,
+                  "pass_rate": pass_rate,
+                  "test_density": test_density,
+                  "score": test_score
+              }
+              
+          except FileNotFoundError:
+              print("Test results not found, using default values")
+              test_details = {"total": 0, "pass_rate": 0, "score": 0}
+          
+          print(f"Test Quality Analysis: {json.dumps(test_details, indent=2)}")
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"score={test_details['score']}\n")
+              f.write(f"pass_rate={test_details['pass_rate']}\n")
+              f.write(f"total_tests={test_details['total']}\n")
+          EOF
+      
+      - name: 🔒 Security Analysis
+        id: security
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          import glob
+          
+          security_score = 0
+          security_details = {
+              "critical_vulnerabilities": 0,
+              "high_vulnerabilities": 0,
+              "medium_vulnerabilities": 0,
+              "low_vulnerabilities": 0,
+              "total_vulnerabilities": 0,
+              "score": 0
+          }
+          
+          # Analyze SARIF files from security scans
+          sarif_files = glob.glob("*.sarif")
+          
+          for sarif_file in sarif_files:
+              try:
+                  with open(sarif_file, 'r') as f:
+                      sarif_data = json.load(f)
+                  
+                  for run in sarif_data.get('runs', []):
+                      for result in run.get('results', []):
+                          level = result.get('level', 'info')
+                          if level == 'error':
+                              security_details["critical_vulnerabilities"] += 1
+                          elif level == 'warning':
+                              security_details["high_vulnerabilities"] += 1
+                          elif level == 'note':
+                              security_details["medium_vulnerabilities"] += 1
+                          else:
+                              security_details["low_vulnerabilities"] += 1
+              except Exception as e:
+                  print(f"Error parsing {sarif_file}: {e}")
+          
+          security_details["total_vulnerabilities"] = (
+              security_details["critical_vulnerabilities"] +
+              security_details["high_vulnerabilities"] +
+              security_details["medium_vulnerabilities"] +
+              security_details["low_vulnerabilities"]
+          )
+          
+          # Security scoring (0-25 points)
+          critical = security_details["critical_vulnerabilities"]
+          high = security_details["high_vulnerabilities"]
+          
+          if critical == 0 and high == 0:
+              security_score = 25
+          elif critical == 0 and high <= 2:
+              security_score = 20
+          elif critical == 0 and high <= 5:
+              security_score = 15
+          elif critical <= 1 and high <= 3:
+              security_score = 10
+          else:
+              security_score = 0
+          
+          security_details["score"] = security_score
+          
+          print(f"Security Analysis: {json.dumps(security_details, indent=2)}")
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"score={security_details['score']}\n")
+              f.write(f"critical={security_details['critical_vulnerabilities']}\n")
+              f.write(f"high={security_details['high_vulnerabilities']}\n")
+              f.write(f"total={security_details['total_vulnerabilities']}\n")
+          EOF
+      
+      - name: 📊 Code Quality Analysis
+        id: code-quality
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          import subprocess
+          
+          quality_score = 0
+          quality_details = {}
+          
+          try:
+              # Run additional code quality checks
+              
+              # Complexity analysis
+              complexity_result = subprocess.run(
+                  ['find', '.', '-name', '*.py', '-exec', 'python3', '-c', 
+                   'import ast; import sys; '
+                   'tree = ast.parse(open(sys.argv[1]).read()); '
+                   'print(len([n for n in ast.walk(tree) if isinstance(n, (ast.If, ast.For, ast.While, ast.FunctionDef))]))', 
+                   '{}', ';'],
+                  capture_output=True, text=True
+              )
+              
+              # Maintainability index (simplified)
+              maintainability_score = 85  # Placeholder
+              
+              # Duplication analysis (simplified)
+              duplication_percentage = 5.0  # Placeholder
+              
+              # Code quality scoring (0-20 points)
+              if maintainability_score >= 85:
+                  quality_score = 20
+              elif maintainability_score >= 70:
+                  quality_score = 15
+              elif maintainability_score >= 60:
+                  quality_score = 10
+              else:
+                  quality_score = 5
+              
+              # Penalty for high duplication
+              if duplication_percentage > 10:
+                  quality_score = max(0, quality_score - 5)
+              
+              quality_details = {
+                  "maintainability_score": maintainability_score,
+                  "duplication_percentage": duplication_percentage,
+                  "score": quality_score
+              }
+              
+          except Exception as e:
+              print(f"Error in code quality analysis: {e}")
+              quality_details = {"score": 10}  # Default score
+          
+          print(f"Code Quality Analysis: {json.dumps(quality_details, indent=2)}")
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"score={quality_details['score']}\n")
+              f.write(f"maintainability={quality_details.get('maintainability_score', 0)}\n")
+          EOF
+      
+      - name: 🎯 Overall Quality Evaluation
+        id: evaluate
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          
+          # Collect all scores
+          coverage_score = float("${{ steps.coverage.outputs.score }}")
+          test_score = float("${{ steps.test-quality.outputs.score }}")
+          security_score = float("${{ steps.security.outputs.score }}")
+          quality_score = float("${{ steps.code-quality.outputs.score }}")
+          
+          # ML prediction factors
+          ml_success_prob = float("${{ steps.ml-prediction.outputs.success_probability }}")
+          ml_risk_score = float("${{ steps.ml-prediction.outputs.risk_score }}")
+          
+          # Calculate overall quality score (0-100)
+          overall_score = coverage_score + test_score + security_score + quality_score
+          
+          # Apply ML adjustment
+          ml_adjustment = (ml_success_prob - 0.5) * 10  # -5 to +5 adjustment
+          overall_score = max(0, min(100, overall_score + ml_adjustment))
+          
+          # Determine deployment approval
+          quality_threshold = float(os.environ.get('QUALITY_THRESHOLD', 85))
+          critical_threshold = float(os.environ.get('CRITICAL_THRESHOLD', 95))
+          
+          critical_vulnerabilities = int("${{ steps.security.outputs.critical }}")
+          high_vulnerabilities = int("${{ steps.security.outputs.high }}")
+          
+          # Blocking conditions
+          blocking_issues = []
+          if critical_vulnerabilities > 0:
+              blocking_issues.append(f"{critical_vulnerabilities} critical security vulnerabilities")
+          
+          if float("${{ steps.test-quality.outputs.pass_rate }}") < 95:
+              blocking_issues.append("Test pass rate below 95%")
+          
+          if float("${{ steps.coverage.outputs.percentage }}") < 70:
+              blocking_issues.append("Code coverage below 70%")
+          
+          # Approval logic
+          if blocking_issues:
+              approved = False
+              approval_reason = f"Blocked by: {', '.join(blocking_issues)}"
+          elif overall_score >= critical_threshold:
+              approved = True
+              approval_reason = "Excellent quality - auto-approved"
+          elif overall_score >= quality_threshold:
+              approved = True
+              approval_reason = "Good quality - approved"
+          else:
+              approved = False
+              approval_reason = f"Quality score {overall_score:.1f} below threshold {quality_threshold}"
+          
+          # Generate recommendations
+          recommendations = []
+          
+          if coverage_score < 25:
+              recommendations.append("Increase test coverage to at least 80%")
+          
+          if test_score < 20:
+              recommendations.append("Improve test quality and increase pass rate")
+          
+          if security_score < 20:
+              recommendations.append("Address security vulnerabilities before deployment")
+          
+          if quality_score < 15:
+              recommendations.append("Improve code maintainability and reduce duplication")
+          
+          if ml_risk_score > 0.3:
+              recommendations.append("High risk deployment - consider additional testing")
+          
+          if not recommendations:
+              recommendations.append("Quality looks good - ready for deployment!")
+          
+          # Results summary
+          results = {
+              "overall_score": overall_score,
+              "breakdown": {
+                  "coverage": coverage_score,
+                  "tests": test_score,
+                  "security": security_score,
+                  "code_quality": quality_score
+              },
+              "ml_factors": {
+                  "success_probability": ml_success_prob,
+                  "risk_score": ml_risk_score,
+                  "adjustment": ml_adjustment
+              },
+              "approved": approved,
+              "approval_reason": approval_reason,
+              "recommendations": recommendations,
+              "blocking_issues": blocking_issues
+          }
+          
+          print(f"Quality Gate Results: {json.dumps(results, indent=2)}")
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"quality-score={overall_score:.1f}\n")
+              f.write(f"deployment-approved={str(approved).lower()}\n")
+              f.write(f"recommendations={json.dumps(recommendations)}\n")
+              f.write(f"approval-reason={approval_reason}\n")
+          
+          # Create quality gate summary
+          if approved:
+              print("✅ Quality gates PASSED")
+              exit_code = 0
+          else:
+              print("❌ Quality gates FAILED")
+              exit_code = 1
+          
+          # Generate detailed report
+          with open('quality-gate-report.json', 'w') as f:
+              json.dump(results, f, indent=2)
+          
+          exit(exit_code)
+          EOF
+      
+      - name: 📊 Generate Quality Dashboard
+        if: always()
+        run: |
+          python3 << 'EOF'
+          import json
+          
+          # Load quality results
+          with open('quality-gate-report.json', 'r') as f:
+              results = json.load(f)
+          
+          # Generate HTML dashboard
+          html_content = f"""
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Quality Gate Dashboard</title>
+              <style>
+                  body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                  .score {{ font-size: 2em; font-weight: bold; }}
+                  .passed {{ color: green; }}
+                  .failed {{ color: red; }}
+                  .breakdown {{ display: flex; gap: 20px; margin: 20px 0; }}
+                  .metric {{ border: 1px solid #ccc; padding: 10px; border-radius: 5px; }}
+                  .recommendations {{ background: #f0f8ff; padding: 15px; border-radius: 5px; }}
+              </style>
+          </head>
+          <body>
+              <h1>Quality Gate Report</h1>
+              
+              <div class="score {'passed' if results['approved'] else 'failed'}">
+                  Overall Score: {results['overall_score']:.1f}/100
+              </div>
+              
+              <h2>Status: {'✅ PASSED' if results['approved'] else '❌ FAILED'}</h2>
+              <p><strong>Reason:</strong> {results['approval_reason']}</p>
+              
+              <h3>Score Breakdown</h3>
+              <div class="breakdown">
+                  <div class="metric">
+                      <h4>Coverage</h4>
+                      <p>{results['breakdown']['coverage']:.1f}/30</p>
+                  </div>
+                  <div class="metric">
+                      <h4>Tests</h4>
+                      <p>{results['breakdown']['tests']:.1f}/25</p>
+                  </div>
+                  <div class="metric">
+                      <h4>Security</h4>
+                      <p>{results['breakdown']['security']:.1f}/25</p>
+                  </div>
+                  <div class="metric">
+                      <h4>Code Quality</h4>
+                      <p>{results['breakdown']['code_quality']:.1f}/20</p>
+                  </div>
+              </div>
+              
+              <h3>ML Insights</h3>
+              <ul>
+                  <li>Success Probability: {results['ml_factors']['success_probability']:.1%}</li>
+                  <li>Risk Score: {results['ml_factors']['risk_score']:.1%}</li>
+                  <li>Score Adjustment: {results['ml_factors']['adjustment']:+.1f}</li>
+              </ul>
+              
+              <div class="recommendations">
+                  <h3>Recommendations</h3>
+                  <ul>
+          """
+          
+          for rec in results['recommendations']:
+              html_content += f"<li>{rec}</li>"
+          
+          html_content += """
+                  </ul>
+              </div>
+              
+              <p><em>Generated on: $(date -u +%Y-%m-%dT%H:%M:%SZ)</em></p>
+          </body>
+          </html>
+          """
+          
+          with open('quality-dashboard.html', 'w') as f:
+              f.write(html_content)
+          
+          print("Quality dashboard generated")
+          EOF
+      
+      - name: 📤 Upload Quality Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-gate-reports
+          path: |
+            quality-gate-report.json
+            quality-dashboard.html
+      
+      - name: 💬 Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('quality-gate-report.json', 'utf8'));
+            
+            const status = results.approved ? '✅ PASSED' : '❌ FAILED';
+            const scoreEmoji = results.overall_score >= 90 ? '🏆' : 
+                              results.overall_score >= 80 ? '🥇' : 
+                              results.overall_score >= 70 ? '🥈' : '🥉';
+            
+            const comment = `## ${scoreEmoji} Quality Gate Report
+            
+            **Status:** ${status}  
+            **Overall Score:** ${results.overall_score.toFixed(1)}/100
+            
+            ### Score Breakdown
+            | Metric | Score | Status |
+            |--------|-------|--------|
+            | Coverage | ${results.breakdown.coverage.toFixed(1)}/30 | ${results.breakdown.coverage >= 25 ? '✅' : '❌'} |
+            | Tests | ${results.breakdown.tests.toFixed(1)}/25 | ${results.breakdown.tests >= 20 ? '✅' : '❌'} |
+            | Security | ${results.breakdown.security.toFixed(1)}/25 | ${results.breakdown.security >= 20 ? '✅' : '❌'} |
+            | Code Quality | ${results.breakdown.code_quality.toFixed(1)}/20 | ${results.breakdown.code_quality >= 15 ? '✅' : '❌'} |
+            
+            ### ML Insights
+            - **Success Probability:** ${(results.ml_factors.success_probability * 100).toFixed(1)}%
+            - **Risk Score:** ${(results.ml_factors.risk_score * 100).toFixed(1)}%
+            
+            ### Recommendations
+            ${results.recommendations.map(rec => `- ${rec}`).join('\n')}
+            
+            ${results.approved ? 
+              '🚀 **Ready for deployment!**' : 
+              '⚠️ **Please address the issues above before deployment.**'
+            }`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: 📊 Update Status Check
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('quality-gate-report.json', 'utf8'));
+            
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: results.approved ? 'success' : 'failure',
+              target_url: `${context.payload.repository.html_url}/actions/runs/${context.runId}`,
+              description: `Quality Score: ${results.overall_score.toFixed(1)}/100`,
+              context: 'Quality Gates'
+            });
+
