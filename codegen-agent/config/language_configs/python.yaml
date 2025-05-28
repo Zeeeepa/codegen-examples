@@ -1,0 +1,296 @@
+# Python Language Configuration for Codegen Agent
+
+language:
+  name: "Python"
+  version: "3.8+"
+  file_extensions: [".py", ".pyx", ".pyi"]
+  
+# Code Style and Conventions
+style:
+  # Naming conventions
+  naming:
+    functions: "snake_case"
+    variables: "snake_case"
+    constants: "UPPER_SNAKE_CASE"
+    classes: "PascalCase"
+    modules: "snake_case"
+    packages: "snake_case"
+    
+  # Formatting preferences
+  formatting:
+    line_length: 88  # Black default
+    indentation: 4   # spaces
+    quote_style: "double"  # or "single"
+    trailing_commas: true
+    
+  # Import organization
+  imports:
+    sort_imports: true
+    group_imports: true
+    separate_local_imports: true
+    max_line_length: 88
+
+# Quality Standards
+quality:
+  # Complexity thresholds
+  complexity:
+    cyclomatic_complexity: 10
+    cognitive_complexity: 15
+    max_function_length: 50
+    max_class_length: 200
+    max_parameters: 5
+    max_nesting_depth: 4
+    
+  # Documentation requirements
+  documentation:
+    require_docstrings: true
+    docstring_style: "google"  # google, numpy, sphinx
+    min_coverage: 80
+    
+    # Required docstring sections
+    required_sections:
+      - "Args"
+      - "Returns"
+      - "Raises"
+      
+  # Type hints
+  type_hints:
+    required: true
+    check_return_types: true
+    check_parameter_types: true
+    use_generic_types: true
+
+# Testing Configuration
+testing:
+  framework: "pytest"
+  
+  # Test file patterns
+  test_patterns:
+    - "test_*.py"
+    - "*_test.py"
+    - "tests/*.py"
+    
+  # Coverage requirements
+  coverage:
+    minimum: 80
+    exclude_patterns:
+      - "*/tests/*"
+      - "*/test_*"
+      - "*/__init__.py"
+      
+  # Test structure
+  structure:
+    use_fixtures: true
+    parametrize_tests: true
+    mock_external_dependencies: true
+
+# Security Guidelines
+security:
+  # Input validation
+  validation:
+    validate_user_input: true
+    sanitize_sql_queries: true
+    escape_html_output: true
+    
+  # Dangerous patterns to avoid
+  avoid_patterns:
+    - "eval()"
+    - "exec()"
+    - "pickle.loads()"
+    - "yaml.load()"
+    - "subprocess.call() with shell=True"
+    
+  # Secure coding practices
+  practices:
+    use_secrets_module: true
+    hash_passwords: true
+    validate_file_paths: true
+    limit_resource_usage: true
+
+# Performance Guidelines
+performance:
+  # Optimization patterns
+  patterns:
+    use_list_comprehensions: true
+    use_generators: true
+    cache_expensive_operations: true
+    use_builtin_functions: true
+    
+  # Memory management
+  memory:
+    avoid_global_variables: true
+    use_slots_for_classes: false  # Only when memory is critical
+    close_file_handles: true
+    
+  # Algorithm preferences
+  algorithms:
+    prefer_builtin_sort: true
+    use_set_operations: true
+    avoid_nested_loops: true
+
+# Dependencies and Libraries
+dependencies:
+  # Standard library preferences
+  standard_library:
+    prefer_pathlib: true
+    use_dataclasses: true
+    use_typing: true
+    use_enum: true
+    
+  # Recommended third-party libraries
+  recommended:
+    http_requests: "requests"
+    json_handling: "json"  # or "orjson" for performance
+    date_handling: "datetime"  # or "pendulum"
+    logging: "logging"
+    testing: "pytest"
+    linting: "black"
+    type_checking: "mypy"
+    
+  # Libraries to avoid
+  avoid:
+    - "pickle"  # Security concerns
+    - "eval"    # Security concerns
+    - "exec"    # Security concerns
+
+# Code Generation Patterns
+patterns:
+  # Class patterns
+  classes:
+    use_dataclasses: true
+    implement_str_repr: true
+    use_properties: true
+    follow_single_responsibility: true
+    
+  # Function patterns
+  functions:
+    use_type_hints: true
+    single_responsibility: true
+    pure_functions_preferred: true
+    handle_exceptions: true
+    
+  # Error handling
+  error_handling:
+    use_specific_exceptions: true
+    provide_error_context: true
+    log_errors: true
+    fail_fast: true
+    
+  # Async patterns
+  async:
+    use_async_await: true
+    handle_async_exceptions: true
+    use_asyncio_gather: true
+    avoid_blocking_calls: true
+
+# Code Analysis Tools
+tools:
+  # Linting
+  linting:
+    primary: "black"
+    secondary: "flake8"
+    config_files:
+      - "pyproject.toml"
+      - "setup.cfg"
+      - ".flake8"
+      
+  # Type checking
+  type_checking:
+    tool: "mypy"
+    strict_mode: true
+    config_file: "mypy.ini"
+    
+  # Security scanning
+  security:
+    tool: "bandit"
+    config_file: ".bandit"
+    
+  # Import sorting
+  import_sorting:
+    tool: "isort"
+    config_file: "pyproject.toml"
+
+# Project Structure
+structure:
+  # Recommended directory layout
+  directories:
+    source: "src/"
+    tests: "tests/"
+    docs: "docs/"
+    config: "config/"
+    scripts: "scripts/"
+    
+  # File organization
+  files:
+    main_module: "__main__.py"
+    init_files: "__init__.py"
+    requirements: "requirements.txt"
+    dev_requirements: "requirements-dev.txt"
+    
+  # Package structure
+  packages:
+    use_namespace_packages: false
+    include_py_typed: true
+    include_manifest: true
+
+# Documentation Standards
+documentation:
+  # Docstring format
+  docstrings:
+    style: "google"
+    include_examples: true
+    document_parameters: true
+    document_return_values: true
+    document_exceptions: true
+    
+  # API documentation
+  api_docs:
+    tool: "sphinx"
+    auto_generate: true
+    include_type_hints: true
+    
+  # README requirements
+  readme:
+    include_installation: true
+    include_usage_examples: true
+    include_api_reference: true
+    include_contributing_guide: true
+
+# Version Control Integration
+version_control:
+  # Git hooks
+  pre_commit:
+    run_black: true
+    run_flake8: true
+    run_mypy: true
+    run_tests: true
+    
+  # Ignore patterns
+  gitignore:
+    - "__pycache__/"
+    - "*.pyc"
+    - "*.pyo"
+    - "*.egg-info/"
+    - ".pytest_cache/"
+    - ".mypy_cache/"
+    - ".coverage"
+    - "htmlcov/"
+
+# Environment Configuration
+environment:
+  # Python version management
+  python_version:
+    minimum: "3.8"
+    recommended: "3.11"
+    
+  # Virtual environment
+  virtual_env:
+    tool: "venv"  # or "conda", "poetry"
+    requirements_file: "requirements.txt"
+    
+  # Environment variables
+  env_vars:
+    use_env_files: true
+    validate_required_vars: true
+    provide_defaults: true
+

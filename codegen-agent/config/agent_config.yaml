@@ -1,0 +1,230 @@
+# Advanced Codegen Agent Configuration
+
+# Agent Settings
+agent:
+  name: "Advanced Codegen Agent"
+  version: "1.0.0"
+  description: "Context-aware code generation agent with intelligent retry logic"
+  
+  # API Configuration
+  api:
+    base_url: "https://api.codegen.com"
+    timeout: 300  # seconds
+    max_retries: 3
+    retry_delay: 2.0  # seconds
+    
+  # Context Engine Settings
+  context:
+    cache_enabled: true
+    cache_ttl: 86400  # 24 hours in seconds
+    cache_dir: ".codegen_cache"
+    max_context_size: 50000  # characters
+    compression_enabled: true
+    
+    # Context gathering settings
+    gather_dependencies: true
+    analyze_patterns: true
+    include_git_history: false  # Requires git access
+    max_files_analyzed: 1000
+    
+  # Quality Assessment
+  quality:
+    enabled: true
+    threshold: 0.8  # Minimum quality score
+    
+    # Quality weights
+    weights:
+      readability: 0.20
+      maintainability: 0.20
+      correctness: 0.25
+      performance: 0.15
+      security: 0.10
+      documentation: 0.05
+      testing: 0.05
+    
+    # Quality thresholds
+    thresholds:
+      complexity_threshold: 10
+      function_length_threshold: 50
+      class_length_threshold: 200
+      parameter_count_threshold: 5
+      nesting_depth_threshold: 4
+      documentation_coverage_threshold: 0.8
+      
+  # Retry Logic Configuration
+  retry:
+    enabled: true
+    max_retries: 3
+    base_delay: 1.0
+    max_delay: 60.0
+    exponential_base: 2.0
+    jitter: true
+    jitter_range: 0.1
+    
+    # Circuit breaker settings
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      recovery_timeout: 300.0  # 5 minutes
+    
+    # Reason-specific configurations
+    reason_configs:
+      quality_threshold:
+        max_retries: 3
+        base_delay: 2.0
+        strategy: "exponential_backoff"
+      api_error:
+        max_retries: 5
+        base_delay: 1.0
+        strategy: "exponential_backoff"
+      rate_limit:
+        max_retries: 10
+        base_delay: 30.0
+        strategy: "linear_backoff"
+      network_error:
+        max_retries: 3
+        base_delay: 5.0
+        strategy: "exponential_backoff"
+      timeout:
+        max_retries: 2
+        base_delay: 10.0
+        strategy: "fixed_delay"
+      validation_failed:
+        max_retries: 2
+        base_delay: 1.0
+        strategy: "fixed_delay"
+
+  # Learning and Feedback
+  learning:
+    enabled: true
+    pattern_storage_limit: 100
+    feedback_retention_days: 30
+    auto_improve_prompts: true
+    
+  # Performance Monitoring
+  monitoring:
+    enabled: true
+    metrics_retention_days: 7
+    log_level: "INFO"
+    
+    # Metrics to track
+    track_metrics:
+      - "generation_time"
+      - "quality_score"
+      - "retry_count"
+      - "success_rate"
+      - "context_gathering_time"
+      
+  # Security Settings
+  security:
+    validate_inputs: true
+    sanitize_outputs: true
+    mask_sensitive_data: true
+    audit_logging: true
+    
+    # Security patterns to detect
+    security_checks:
+      - "sql_injection"
+      - "xss_vulnerability"
+      - "hardcoded_secrets"
+      - "unsafe_deserialization"
+      
+# Language-specific configurations
+languages:
+  python:
+    config_file: "language_configs/python.yaml"
+    enabled: true
+    priority: 1
+    
+  typescript:
+    config_file: "language_configs/typescript.yaml"
+    enabled: true
+    priority: 2
+    
+  javascript:
+    config_file: "language_configs/javascript.yaml"
+    enabled: true
+    priority: 3
+    
+  go:
+    config_file: "language_configs/go.yaml"
+    enabled: true
+    priority: 4
+    
+  java:
+    config_file: "language_configs/java.yaml"
+    enabled: false
+    priority: 5
+
+# Prompt Configuration
+prompts:
+  config_file: "prompt_configs.yaml"
+  
+  # Template settings
+  templates:
+    feature_generation: "prompt_templates/feature_generation.py"
+    bug_fixing: "prompt_templates/bug_fixing.py"
+    refactoring: "prompt_templates/refactoring.py"
+    
+  # Prompt enhancement settings
+  enhancement:
+    include_context_summary: true
+    include_quality_metrics: true
+    include_team_preferences: true
+    include_learned_patterns: true
+    max_prompt_length: 8000  # characters
+    
+# Integration Settings
+integrations:
+  # PostgreSQL Database
+  database:
+    enabled: false  # Enable when database is available
+    host: "localhost"
+    port: 5432
+    database: "codegen_agent"
+    
+  # Claude Code Integration
+  claude_code:
+    enabled: false  # Enable when Claude Code is available
+    validation_endpoint: "http://localhost:8080/validate"
+    
+  # Webhook Orchestrator
+  webhooks:
+    enabled: false  # Enable when webhook system is available
+    endpoint: "http://localhost:8081/webhook"
+    
+  # GitHub Integration
+  github:
+    enabled: true
+    create_prs: true
+    update_existing_prs: true
+    
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/codegen_agent.log"
+  max_file_size: "10MB"
+  backup_count: 5
+  
+  # Component-specific logging
+  components:
+    context_engine: "DEBUG"
+    quality_assessor: "INFO"
+    retry_manager: "INFO"
+    feedback_processor: "INFO"
+    
+# Development Settings
+development:
+  debug_mode: false
+  mock_api_calls: false
+  save_intermediate_results: false
+  verbose_logging: false
+  
+# Production Settings
+production:
+  optimize_performance: true
+  enable_caching: true
+  compress_responses: true
+  rate_limit_requests: true
+

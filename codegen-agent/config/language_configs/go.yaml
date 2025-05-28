@@ -1,0 +1,391 @@
+# Go Language Configuration for Codegen Agent
+
+language:
+  name: "Go"
+  version: "1.19+"
+  file_extensions: [".go"]
+  
+# Code Style and Conventions
+style:
+  # Naming conventions (Go standard)
+  naming:
+    functions: "camelCase"  # exported: PascalCase, unexported: camelCase
+    variables: "camelCase"  # exported: PascalCase, unexported: camelCase
+    constants: "camelCase"  # exported: PascalCase, unexported: camelCase
+    types: "PascalCase"     # exported: PascalCase, unexported: camelCase
+    interfaces: "PascalCase" # often ending with 'er'
+    packages: "lowercase"   # single word, lowercase
+    files: "snake_case"     # with underscores
+    
+  # Formatting preferences (gofmt standard)
+  formatting:
+    use_gofmt: true
+    use_goimports: true
+    tab_indentation: true
+    line_length: 100  # soft limit
+    
+  # Import organization
+  imports:
+    group_imports: true
+    separate_standard_library: true
+    sort_imports: true
+
+# Quality Standards
+quality:
+  # Complexity thresholds
+  complexity:
+    cyclomatic_complexity: 10
+    cognitive_complexity: 15
+    max_function_length: 50
+    max_file_length: 500
+    max_parameters: 5
+    max_nesting_depth: 4
+    
+  # Documentation requirements
+  documentation:
+    require_package_comments: true
+    require_exported_comments: true
+    min_coverage: 80
+    
+    # Comment style
+    comment_style:
+      start_with_name: true  # "FunctionName does..."
+      complete_sentences: true
+      no_redundant_info: true
+      
+  # Code quality
+  code_quality:
+    use_go_vet: true
+    use_golint: true
+    use_staticcheck: true
+    handle_all_errors: true
+
+# Testing Configuration
+testing:
+  framework: "testing"  # Go standard library
+  
+  # Test file patterns
+  test_patterns:
+    - "*_test.go"
+    
+  # Coverage requirements
+  coverage:
+    minimum: 80
+    exclude_patterns:
+      - "vendor/"
+      - "*_test.go"
+      - "main.go"
+      
+  # Test structure
+  structure:
+    use_table_tests: true
+    use_subtests: true
+    use_testify: false  # prefer standard library
+    benchmark_tests: true
+
+# Security Guidelines
+security:
+  # Input validation
+  validation:
+    validate_user_input: true
+    sanitize_sql_queries: true
+    validate_file_paths: true
+    
+  # Dangerous patterns to avoid
+  avoid_patterns:
+    - "unsafe package usage"
+    - "eval-like functions"
+    - "command injection"
+    - "path traversal"
+    
+  # Secure coding practices
+  practices:
+    use_crypto_rand: true
+    validate_tls_config: true
+    handle_secrets_securely: true
+    use_context_timeouts: true
+
+# Performance Guidelines
+performance:
+  # Optimization patterns
+  patterns:
+    use_string_builder: true
+    reuse_slices: true
+    use_sync_pool: true
+    avoid_unnecessary_allocations: true
+    
+  # Memory management
+  memory:
+    understand_escape_analysis: true
+    use_pointers_wisely: true
+    avoid_memory_leaks: true
+    
+  # Concurrency
+  concurrency:
+    use_channels: true
+    avoid_shared_state: true
+    use_context: true
+    handle_goroutine_leaks: true
+
+# Dependencies and Libraries
+dependencies:
+  # Standard library preferences
+  standard_library:
+    prefer_standard_library: true
+    use_context: true
+    use_errors_package: true
+    use_time_package: true
+    
+  # Recommended third-party libraries
+  recommended:
+    http_router: "gorilla/mux"  # or "gin-gonic/gin"
+    database: "database/sql"
+    logging: "log/slog"  # Go 1.21+
+    testing: "testify"  # optional
+    cli: "cobra"
+    config: "viper"
+    
+  # Module management
+  modules:
+    use_go_modules: true
+    semantic_versioning: true
+    minimal_version_selection: true
+
+# Code Generation Patterns
+patterns:
+  # Struct patterns
+  structs:
+    use_struct_tags: true
+    embed_interfaces: true
+    use_pointer_receivers: true
+    validate_struct_fields: true
+    
+  # Interface patterns
+  interfaces:
+    keep_interfaces_small: true
+    accept_interfaces_return_structs: true
+    use_standard_interfaces: true
+    name_with_er_suffix: true
+    
+  # Function patterns
+  functions:
+    return_error_last: true
+    use_named_returns_sparingly: true
+    handle_all_errors: true
+    use_context_first_parameter: true
+    
+  # Error handling
+  error_handling:
+    wrap_errors: true
+    provide_error_context: true
+    use_custom_error_types: true
+    handle_errors_immediately: true
+    
+  # Concurrency patterns
+  concurrency:
+    use_channels_for_communication: true
+    use_select_for_multiplexing: true
+    use_worker_pools: true
+    use_context_for_cancellation: true
+
+# Code Analysis Tools
+tools:
+  # Formatting
+  formatting:
+    primary: "gofmt"
+    imports: "goimports"
+    
+  # Linting
+  linting:
+    primary: "golangci-lint"
+    secondary: "staticcheck"
+    vet: "go vet"
+    
+  # Security scanning
+  security:
+    tool: "gosec"
+    
+  # Dependency management
+  dependencies:
+    tool: "go mod"
+    vulnerability_check: "govulncheck"
+
+# Project Structure
+structure:
+  # Recommended directory layout
+  directories:
+    cmd: "cmd/"           # Main applications
+    internal: "internal/" # Private application code
+    pkg: "pkg/"          # Library code for external use
+    api: "api/"          # API definitions
+    web: "web/"          # Web application assets
+    configs: "configs/"   # Configuration files
+    init: "init/"        # System init configs
+    scripts: "scripts/"   # Build and install scripts
+    build: "build/"      # Packaging and CI
+    deployments: "deployments/" # IaaS, PaaS configs
+    test: "test/"        # Additional external test apps
+    docs: "docs/"        # Design and user documents
+    tools: "tools/"      # Supporting tools
+    examples: "examples/" # Examples for your applications
+    third_party: "third_party/" # External helper tools
+    githooks: "githooks/" # Git hooks
+    assets: "assets/"    # Other assets
+    website: "website/"  # Project's website data
+    
+  # File organization
+  files:
+    main_entry: "main.go"
+    makefile: "Makefile"
+    dockerfile: "Dockerfile"
+    go_mod: "go.mod"
+    go_sum: "go.sum"
+
+# Go-specific Configuration
+go_config:
+  # Module configuration
+  module:
+    use_go_modules: true
+    go_version: "1.19"  # minimum version
+    
+  # Build configuration
+  build:
+    use_build_tags: true
+    cross_compilation: true
+    static_linking: false
+    
+  # Runtime configuration
+  runtime:
+    garbage_collector: "default"
+    max_procs: "auto"
+
+# Documentation Standards
+documentation:
+  # Go doc format
+  godoc:
+    use_godoc: true
+    include_examples: true
+    document_exported_items: true
+    
+  # Package documentation
+  package_docs:
+    package_comment_required: true
+    overview_in_doc_go: true
+    
+  # README requirements
+  readme:
+    include_installation: true
+    include_usage_examples: true
+    include_api_reference: true
+    include_build_instructions: true
+
+# Build and Deployment
+build:
+  # Build tools
+  build_system: "go build"
+  
+  # Build optimization
+  optimization:
+    enable_optimizations: true
+    strip_debug_info: false
+    static_linking: false
+    
+  # Cross compilation
+  cross_compile:
+    enable: true
+    targets:
+      - "linux/amd64"
+      - "darwin/amd64"
+      - "windows/amd64"
+
+# Environment Configuration
+environment:
+  # Go version
+  go_version:
+    minimum: "1.19"
+    recommended: "1.21"
+    
+  # Environment variables
+  env_vars:
+    GOOS: "auto"
+    GOARCH: "auto"
+    CGO_ENABLED: "0"  # for static binaries
+    GO111MODULE: "on"
+    
+  # Development environment
+  development:
+    use_air: true      # for hot reloading
+    use_delve: true    # for debugging
+    use_pprof: true    # for profiling
+
+# Framework-specific configurations
+frameworks:
+  # Web frameworks
+  web:
+    gin:
+      version: "1.9+"
+      middleware: true
+      validation: true
+    echo:
+      version: "4.0+"
+      middleware: true
+    fiber:
+      version: "2.0+"
+      
+  # CLI frameworks
+  cli:
+    cobra:
+      version: "1.7+"
+      use_viper: true
+    urfave_cli:
+      version: "2.0+"
+      
+  # Database
+  database:
+    gorm:
+      version: "1.25+"
+      auto_migrate: false
+    sqlx:
+      version: "1.3+"
+
+# Version Control Integration
+version_control:
+  # Git hooks
+  pre_commit:
+    run_gofmt: true
+    run_goimports: true
+    run_go_vet: true
+    run_tests: true
+    run_golangci_lint: true
+    
+  # Ignore patterns
+  gitignore:
+    - "vendor/"
+    - "*.exe"
+    - "*.exe~"
+    - "*.dll"
+    - "*.so"
+    - "*.dylib"
+    - "*.test"
+    - "*.out"
+    - "go.work"
+    - "go.work.sum"
+
+# Performance and Profiling
+performance:
+  # Profiling
+  profiling:
+    enable_pprof: true
+    cpu_profiling: true
+    memory_profiling: true
+    
+  # Benchmarking
+  benchmarking:
+    write_benchmarks: true
+    use_benchstat: true
+    
+  # Optimization
+  optimization:
+    profile_guided_optimization: false  # Go 1.21+
+    escape_analysis: true
+

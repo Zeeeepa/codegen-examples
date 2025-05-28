@@ -1,0 +1,383 @@
+# TypeScript Language Configuration for Codegen Agent
+
+language:
+  name: "TypeScript"
+  version: "4.0+"
+  file_extensions: [".ts", ".tsx", ".d.ts"]
+  
+# Code Style and Conventions
+style:
+  # Naming conventions
+  naming:
+    functions: "camelCase"
+    variables: "camelCase"
+    constants: "UPPER_SNAKE_CASE"
+    classes: "PascalCase"
+    interfaces: "PascalCase"  # with 'I' prefix optional
+    types: "PascalCase"
+    enums: "PascalCase"
+    modules: "camelCase"
+    files: "kebab-case"  # or "camelCase"
+    
+  # Formatting preferences
+  formatting:
+    line_length: 100
+    indentation: 2   # spaces
+    quote_style: "single"  # or "double"
+    trailing_commas: "es5"  # es5, all, none
+    semicolons: true
+    
+  # Import organization
+  imports:
+    sort_imports: true
+    group_imports: true
+    separate_local_imports: true
+    prefer_default_exports: false
+
+# Quality Standards
+quality:
+  # Complexity thresholds
+  complexity:
+    cyclomatic_complexity: 10
+    cognitive_complexity: 15
+    max_function_length: 50
+    max_class_length: 200
+    max_parameters: 5
+    max_nesting_depth: 4
+    
+  # Documentation requirements
+  documentation:
+    require_jsdoc: true
+    jsdoc_style: "tsdoc"
+    min_coverage: 80
+    
+    # Required JSDoc sections
+    required_sections:
+      - "@param"
+      - "@returns"
+      - "@throws"
+      
+  # Type safety
+  type_safety:
+    strict_mode: true
+    no_any: true
+    no_implicit_any: true
+    strict_null_checks: true
+    no_unused_locals: true
+    no_unused_parameters: true
+
+# Testing Configuration
+testing:
+  framework: "jest"  # or "vitest", "mocha"
+  
+  # Test file patterns
+  test_patterns:
+    - "*.test.ts"
+    - "*.test.tsx"
+    - "*.spec.ts"
+    - "*.spec.tsx"
+    - "__tests__/*.ts"
+    - "__tests__/*.tsx"
+    
+  # Coverage requirements
+  coverage:
+    minimum: 80
+    exclude_patterns:
+      - "**/*.test.ts"
+      - "**/*.test.tsx"
+      - "**/*.spec.ts"
+      - "**/*.spec.tsx"
+      - "**/node_modules/**"
+      
+  # Test structure
+  structure:
+    use_describe_blocks: true
+    use_test_utilities: true
+    mock_external_dependencies: true
+    use_type_assertions: true
+
+# Security Guidelines
+security:
+  # Input validation
+  validation:
+    validate_user_input: true
+    sanitize_html_output: true
+    validate_api_responses: true
+    
+  # Dangerous patterns to avoid
+  avoid_patterns:
+    - "eval()"
+    - "Function() constructor"
+    - "innerHTML without sanitization"
+    - "document.write()"
+    - "setTimeout() with string"
+    
+  # Secure coding practices
+  practices:
+    use_content_security_policy: true
+    validate_external_data: true
+    escape_user_content: true
+    use_https_only: true
+
+# Performance Guidelines
+performance:
+  # Optimization patterns
+  patterns:
+    use_const_assertions: true
+    prefer_readonly_arrays: true
+    use_object_freeze: true
+    avoid_any_type: true
+    
+  # Memory management
+  memory:
+    avoid_memory_leaks: true
+    cleanup_event_listeners: true
+    use_weak_references: true
+    
+  # Bundle optimization
+  bundling:
+    tree_shaking: true
+    code_splitting: true
+    lazy_loading: true
+    minimize_dependencies: true
+
+# Dependencies and Libraries
+dependencies:
+  # Type definitions
+  types:
+    include_node_types: true
+    include_dom_types: true
+    use_definitelytyped: true
+    
+  # Recommended libraries
+  recommended:
+    utility_types: "utility-types"
+    date_handling: "date-fns"
+    validation: "zod"
+    testing: "jest"
+    linting: "eslint"
+    formatting: "prettier"
+    
+  # Libraries to avoid or use carefully
+  caution:
+    - "lodash"  # Prefer native methods
+    - "moment"  # Use date-fns instead
+    - "any"     # Avoid any type
+
+# Code Generation Patterns
+patterns:
+  # Interface patterns
+  interfaces:
+    prefer_interfaces_over_types: true
+    use_readonly_properties: true
+    extend_base_interfaces: true
+    document_all_properties: true
+    
+  # Class patterns
+  classes:
+    use_access_modifiers: true
+    implement_interfaces: true
+    use_readonly_properties: true
+    prefer_composition: true
+    
+  # Function patterns
+  functions:
+    use_arrow_functions: true
+    prefer_pure_functions: true
+    use_type_guards: true
+    handle_async_properly: true
+    
+  # Error handling
+  error_handling:
+    use_custom_error_types: true
+    provide_error_context: true
+    use_result_types: true
+    handle_promise_rejections: true
+    
+  # Async patterns
+  async:
+    use_async_await: true
+    handle_promise_chains: true
+    use_promise_all: true
+    avoid_callback_hell: true
+
+# Code Analysis Tools
+tools:
+  # Linting
+  linting:
+    primary: "eslint"
+    config_files:
+      - ".eslintrc.js"
+      - ".eslintrc.json"
+      - "eslint.config.js"
+    rules:
+      - "@typescript-eslint/recommended"
+      - "@typescript-eslint/recommended-requiring-type-checking"
+      
+  # Formatting
+  formatting:
+    tool: "prettier"
+    config_file: ".prettierrc"
+    
+  # Type checking
+  type_checking:
+    tool: "tsc"
+    strict_mode: true
+    config_file: "tsconfig.json"
+    
+  # Security scanning
+  security:
+    tool: "eslint-plugin-security"
+
+# Project Structure
+structure:
+  # Recommended directory layout
+  directories:
+    source: "src/"
+    tests: "__tests__/" # or "tests/"
+    types: "types/" # or "@types/"
+    docs: "docs/"
+    config: "config/"
+    public: "public/"
+    
+  # File organization
+  files:
+    main_entry: "index.ts"
+    type_definitions: "types.ts"
+    constants: "constants.ts"
+    utilities: "utils.ts"
+    
+  # Module structure
+  modules:
+    use_barrel_exports: true
+    organize_by_feature: true
+    separate_types: true
+
+# TypeScript Configuration
+typescript:
+  # Compiler options
+  compiler_options:
+    target: "ES2020"
+    module: "ESNext"
+    lib: ["ES2020", "DOM"]
+    strict: true
+    esModuleInterop: true
+    skipLibCheck: true
+    forceConsistentCasingInFileNames: true
+    
+  # Path mapping
+  paths:
+    enable_path_mapping: true
+    base_url: "./src"
+    
+  # Declaration files
+  declarations:
+    generate_declarations: true
+    declaration_map: true
+    
+  # Source maps
+  source_maps:
+    generate_source_maps: true
+    inline_source_maps: false
+
+# Documentation Standards
+documentation:
+  # TSDoc format
+  tsdoc:
+    use_tsdoc: true
+    include_examples: true
+    document_parameters: true
+    document_return_values: true
+    document_exceptions: true
+    
+  # API documentation
+  api_docs:
+    tool: "typedoc"
+    auto_generate: true
+    include_private_members: false
+    
+  # README requirements
+  readme:
+    include_installation: true
+    include_usage_examples: true
+    include_api_reference: true
+    include_build_instructions: true
+
+# Build Configuration
+build:
+  # Build tools
+  bundler: "webpack"  # or "vite", "rollup", "esbuild"
+  
+  # Build optimization
+  optimization:
+    minification: true
+    tree_shaking: true
+    code_splitting: true
+    source_maps: true
+    
+  # Output configuration
+  output:
+    format: "esm"  # or "cjs", "umd"
+    target: "es2020"
+    
+# Environment Configuration
+environment:
+  # Node.js version
+  node_version:
+    minimum: "16.0.0"
+    recommended: "18.0.0"
+    
+  # Package manager
+  package_manager: "npm"  # or "yarn", "pnpm"
+  
+  # Environment variables
+  env_vars:
+    use_env_files: true
+    validate_required_vars: true
+    type_env_vars: true
+
+# Framework-specific configurations
+frameworks:
+  # React
+  react:
+    version: "18+"
+    use_hooks: true
+    use_typescript_jsx: true
+    prop_types: false  # Use TypeScript instead
+    
+  # Vue
+  vue:
+    version: "3+"
+    composition_api: true
+    script_setup: true
+    
+  # Angular
+  angular:
+    version: "15+"
+    strict_mode: true
+    use_standalone_components: true
+    
+  # Node.js
+  node:
+    use_esm: true
+    type_module: true
+    use_import_assertions: true
+
+# Version Control Integration
+version_control:
+  # Git hooks
+  pre_commit:
+    run_prettier: true
+    run_eslint: true
+    run_type_check: true
+    run_tests: true
+    
+  # Ignore patterns
+  gitignore:
+    - "node_modules/"
+    - "dist/"
+    - "build/"
+    - "*.tsbuildinfo"
+    - ".eslintcache"
+    - "coverage/"
+
