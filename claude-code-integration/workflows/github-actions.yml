@@ -1,0 +1,535 @@
+# GitHub Actions Workflow for Claude Code Integration & Validation Engine
+# Comprehensive CI/CD pipeline with security, testing, and deployment
+
+name: Claude Code Validation Engine
+
+on:
+  push:
+    branches: [ main, develop, 'feature/*', 'hotfix/*' ]
+    paths:
+      - 'claude-code-integration/**'
+      - '.github/workflows/claude-validation.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'claude-code-integration/**'
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Environment to deploy to'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      run_security_scan:
+        description: 'Run comprehensive security scan'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/claude-validation
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+  GO_VERSION: '1.21'
+
+jobs:
+  # Code quality and security analysis
+  code-analysis:
+    name: Code Quality & Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: claude-code-integration/package-lock.json
+
+      - name: Install Python dependencies
+        working-directory: claude-code-integration
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit safety semgrep pylint flake8 black isort mypy
+
+      - name: Install Node.js dependencies
+        working-directory: claude-code-integration
+        run: npm ci
+
+      - name: Python code formatting check
+        working-directory: claude-code-integration
+        run: |
+          black --check --diff src/
+          isort --check-only --diff src/
+
+      - name: Python linting
+        working-directory: claude-code-integration
+        run: |
+          pylint src/ --output-format=github
+          flake8 src/ --format=github
+
+      - name: Python type checking
+        working-directory: claude-code-integration
+        run: mypy src/ --show-error-codes
+
+      - name: JavaScript/TypeScript linting
+        working-directory: claude-code-integration
+        run: |
+          npx eslint src/ --format=github
+          npx prettier --check src/
+
+      - name: Security scan with Bandit
+        working-directory: claude-code-integration
+        run: |
+          bandit -r src/ -f json -o bandit-report.json || true
+          bandit -r src/ -f txt
+
+      - name: Security scan with Safety
+        working-directory: claude-code-integration
+        run: |
+          safety check --json --output safety-report.json || true
+          safety check
+
+      - name: Security scan with Semgrep
+        working-directory: claude-code-integration
+        run: |
+          semgrep --config=auto src/ --json --output=semgrep-report.json || true
+          semgrep --config=auto src/
+
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            claude-code-integration/bandit-report.json
+            claude-code-integration/safety-report.json
+            claude-code-integration/semgrep-report.json
+
+      - name: CodeQL Analysis
+        uses: github/codeql-action/init@v2
+        with:
+          languages: python, javascript
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  # Comprehensive testing suite
+  testing:
+    name: Testing Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+        test-type: ['unit', 'integration', 'security']
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: claude-code-integration/package-lock.json
+
+      - name: Install dependencies
+        working-directory: claude-code-integration
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-xdist pytest-mock coverage
+          npm ci
+
+      - name: Run unit tests
+        if: matrix.test-type == 'unit'
+        working-directory: claude-code-integration
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          CLAUDE_API_KEY: test_key
+        run: |
+          pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=html --junitxml=junit-unit.xml
+
+      - name: Run integration tests
+        if: matrix.test-type == 'integration'
+        working-directory: claude-code-integration
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          CLAUDE_API_KEY: test_key
+        run: |
+          pytest tests/integration/ -v --cov=src --cov-report=xml --cov-report=html --junitxml=junit-integration.xml
+
+      - name: Run security tests
+        if: matrix.test-type == 'security'
+        working-directory: claude-code-integration
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          CLAUDE_API_KEY: test_key
+        run: |
+          pytest tests/security/ -v --junitxml=junit-security.xml
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ matrix.python-version }}-${{ matrix.test-type }}
+          path: |
+            claude-code-integration/junit-*.xml
+            claude-code-integration/htmlcov/
+            claude-code-integration/coverage.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: matrix.test-type == 'unit' && matrix.python-version == '3.11'
+        with:
+          file: claude-code-integration/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  # Container security and vulnerability scanning
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build container image
+        uses: docker/build-push-action@v5
+        with:
+          context: claude-code-integration
+          file: claude-code-integration/docker/Dockerfile
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@v3
+        id: grype-scan
+        with:
+          image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          fail-build: false
+          severity-cutoff: high
+
+      - name: Upload Grype scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: ${{ steps.grype-scan.outputs.sarif }}
+
+      - name: Docker Scout security scan
+        uses: docker/scout-action@v1
+        if: github.event_name != 'pull_request'
+        with:
+          command: cves
+          image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          sarif-file: scout-results.sarif
+
+  # Performance and load testing
+  performance-testing:
+    name: Performance Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          cd claude-code-integration
+          cp .env.example .env
+          echo "CLAUDE_API_KEY=test_key" >> .env
+          echo "POSTGRES_PASSWORD=test_password" >> .env
+          echo "GRAFANA_PASSWORD=test_password" >> .env
+
+      - name: Start services
+        working-directory: claude-code-integration
+        run: |
+          docker-compose -f docker/docker-compose.yml up -d --build
+          sleep 60  # Wait for services to be ready
+
+      - name: Run performance tests
+        working-directory: claude-code-integration
+        run: |
+          # Install k6 for load testing
+          curl https://github.com/grafana/k6/releases/download/v0.46.0/k6-v0.46.0-linux-amd64.tar.gz -L | tar xvz --strip-components 1
+          
+          # Run load tests
+          ./k6 run tests/performance/load-test.js --out json=load-test-results.json
+
+      - name: Analyze performance results
+        working-directory: claude-code-integration
+        run: |
+          python scripts/analyze-performance.py load-test-results.json
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results
+          path: claude-code-integration/load-test-results.json
+
+      - name: Cleanup
+        if: always()
+        working-directory: claude-code-integration
+        run: docker-compose -f docker/docker-compose.yml down -v
+
+  # Build and push container images
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    needs: [code-analysis, testing, container-security]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: claude-code-integration
+          file: claude-code-integration/docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+  # Deploy to staging environment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://claude-validation-staging.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          
+          # Update deployment with new image
+          kubectl set image deployment/claude-validation-engine \
+            claude-validation-engine=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n claude-validation-staging
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/claude-validation-engine -n claude-validation-staging --timeout=300s
+
+      - name: Run smoke tests
+        run: |
+          # Wait for deployment to be ready
+          sleep 30
+          
+          # Run basic health checks
+          curl -f https://claude-validation-staging.example.com/health || exit 1
+          curl -f https://claude-validation-staging.example.com/metrics || exit 1
+
+  # Deploy to production environment
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-staging]
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://claude-validation.example.com
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to production
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          
+          # Blue-green deployment strategy
+          kubectl set image deployment/claude-validation-engine \
+            claude-validation-engine=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            -n claude-validation-production
+          
+          # Wait for rollout to complete
+          kubectl rollout status deployment/claude-validation-engine -n claude-validation-production --timeout=600s
+
+      - name: Run production smoke tests
+        run: |
+          # Wait for deployment to be ready
+          sleep 60
+          
+          # Run comprehensive health checks
+          curl -f https://claude-validation.example.com/health || exit 1
+          curl -f https://claude-validation.example.com/metrics || exit 1
+          
+          # Test API endpoints
+          curl -f -X POST https://claude-validation.example.com/api/v1/validate \
+            -H "Content-Type: application/json" \
+            -d '{"test": true}' || exit 1
+
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        if: success()
+        with:
+          status: success
+          channel: '#deployments'
+          text: 'Claude Code Validation Engine successfully deployed to production! :rocket:'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify deployment failure
+        uses: 8398a7/action-slack@v3
+        if: failure()
+        with:
+          status: failure
+          channel: '#deployments'
+          text: 'Claude Code Validation Engine deployment to production failed! :x:'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Cleanup old artifacts and images
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [deploy-production, deploy-staging]
+    
+    steps:
+      - name: Delete old container images
+        uses: actions/delete-package-versions@v4
+        with:
+          package-name: claude-validation
+          package-type: container
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: true
+
