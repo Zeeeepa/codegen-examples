@@ -1,0 +1,262 @@
+# Multi-Agent Coordination System Configuration
+
+# System Settings
+system:
+  name: "Multi-Agent Coordination System"
+  version: "1.0.0"
+  environment: "development"  # development, staging, production
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# Workflow Engine Configuration
+workflow_engine:
+  max_concurrent_workflows: 5
+  default_timeout: 3600  # seconds
+  enable_ml_optimization: true
+  planning_strategy: "ml_optimized"  # topological, critical_path, resource_aware, ml_optimized, adaptive
+
+# Agent Registry Configuration
+agent_registry:
+  enable_auto_scaling: true
+  load_balancer_strategy: "performance_based"  # round_robin, least_loaded, performance_based
+  health_check_interval: 60  # seconds
+  max_agents_per_type: 10
+
+# Resource Manager Configuration
+resource_manager:
+  allocation_strategy: "ml_optimized"  # first_fit, best_fit, worst_fit, ml_optimized, priority_based
+  enable_auto_scaling: true
+  enable_ml_optimization: true
+  scaling_cooldown: 600  # seconds
+
+# Monitoring System Configuration
+monitoring:
+  collection_interval: 30  # seconds
+  enable_system_metrics: true
+  enable_alerts: true
+  metrics_retention: 86400  # seconds (24 hours)
+  
+  # Alert Configuration
+  alerts:
+    high_cpu_threshold: 80.0  # percentage
+    high_memory_threshold: 85.0  # percentage
+    high_failure_rate_threshold: 0.1  # 10%
+    alert_cooldown: 300  # seconds
+  
+  # Webhook URLs for notifications
+  webhooks:
+    - url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+      name: "slack_alerts"
+      enabled: false
+    - url: "https://your-monitoring-system.com/webhook"
+      name: "external_monitoring"
+      enabled: false
+
+# Database Configuration
+database:
+  # PostgreSQL for persistent storage
+  postgres:
+    host: "localhost"
+    port: 5432
+    database: "coordinator"
+    username: "coordinator"
+    password: "password"
+    pool_size: 10
+    max_overflow: 20
+  
+  # Redis for caching and message queuing
+  redis:
+    host: "localhost"
+    port: 6379
+    database: 0
+    password: null
+    pool_size: 10
+
+# Agent Configurations
+agents:
+  # Default resource requirements for different agent types
+  default_resources:
+    planner:
+      cpu: 0.5
+      memory: 1.0
+      timeout: 300
+    coder:
+      cpu: 2.0
+      memory: 4.0
+      timeout: 1800
+    tester:
+      cpu: 1.5
+      memory: 2.0
+      timeout: 900
+    reviewer:
+      cpu: 1.0
+      memory: 2.0
+      timeout: 600
+    deployer:
+      cpu: 1.0
+      memory: 1.5
+      timeout: 1200
+    custom:
+      cpu: 2.0
+      memory: 4.0
+      timeout: 1800
+
+# Workflow Templates Configuration
+templates:
+  software_development:
+    default_complexity: "medium"
+    default_backend_language: "python"
+    default_frontend_framework: "react"
+    enable_parallel_development: true
+  
+  ml_model_development:
+    default_model_type: "classification"
+    enable_hyperparameter_tuning: true
+    default_evaluation_metrics: ["accuracy", "precision", "recall", "f1_score"]
+  
+  data_pipeline:
+    default_ingestion_type: "batch"
+    enable_data_validation: true
+    default_scheduling: "daily"
+  
+  infrastructure_provisioning:
+    default_cloud_provider: "aws"
+    enable_auto_scaling: true
+    default_backup_strategy: "daily"
+
+# Security Configuration
+security:
+  enable_authentication: false  # Set to true in production
+  api_key_required: false
+  rate_limiting:
+    enabled: false
+    requests_per_minute: 100
+  
+  # Encryption settings
+  encryption:
+    enabled: false
+    algorithm: "AES-256-GCM"
+
+# Performance Configuration
+performance:
+  # Connection pools
+  max_connections: 100
+  connection_timeout: 30
+  
+  # Caching
+  enable_caching: true
+  cache_ttl: 3600  # seconds
+  
+  # Batch processing
+  batch_size: 50
+  batch_timeout: 10  # seconds
+
+# Development Configuration
+development:
+  debug_mode: true
+  enable_profiling: false
+  mock_external_services: true
+  test_data_path: "./test_data"
+
+# Production Configuration
+production:
+  debug_mode: false
+  enable_profiling: true
+  mock_external_services: false
+  
+  # High availability settings
+  enable_clustering: true
+  cluster_nodes: 3
+  
+  # Backup and recovery
+  backup_interval: 3600  # seconds
+  backup_retention: 604800  # seconds (7 days)
+
+# Container Configuration
+container:
+  # Docker settings
+  docker:
+    image_name: "multi-agent-coordinator"
+    image_tag: "latest"
+    registry: "your-registry.com"
+  
+  # Kubernetes settings
+  kubernetes:
+    namespace: "multi-agent-system"
+    replicas: 3
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+    
+    # Service configuration
+    service:
+      type: "ClusterIP"
+      port: 8000
+    
+    # Ingress configuration
+    ingress:
+      enabled: false
+      host: "coordinator.example.com"
+      tls_enabled: false
+
+# Cloud Provider Configuration
+cloud:
+  aws:
+    region: "us-west-2"
+    availability_zones: ["us-west-2a", "us-west-2b", "us-west-2c"]
+    instance_types:
+      small: "t3.small"
+      medium: "t3.medium"
+      large: "t3.large"
+      xlarge: "t3.xlarge"
+  
+  gcp:
+    project_id: "your-project-id"
+    region: "us-central1"
+    zones: ["us-central1-a", "us-central1-b", "us-central1-c"]
+  
+  azure:
+    subscription_id: "your-subscription-id"
+    resource_group: "coordinator-rg"
+    location: "East US"
+
+# Integration Configuration
+integrations:
+  # Codegen SDK
+  codegen:
+    enabled: true
+    api_token: "${CODEGEN_API_TOKEN}"
+    org_id: 1
+    base_url: "https://api.codegen.com"
+  
+  # External monitoring
+  prometheus:
+    enabled: false
+    endpoint: "http://prometheus:9090"
+    push_gateway: "http://pushgateway:9091"
+  
+  grafana:
+    enabled: false
+    endpoint: "http://grafana:3000"
+    api_key: "${GRAFANA_API_KEY}"
+  
+  # CI/CD integrations
+  github:
+    enabled: false
+    token: "${GITHUB_TOKEN}"
+    webhook_secret: "${GITHUB_WEBHOOK_SECRET}"
+  
+  gitlab:
+    enabled: false
+    token: "${GITLAB_TOKEN}"
+    webhook_secret: "${GITLAB_WEBHOOK_SECRET}"
+  
+  jenkins:
+    enabled: false
+    url: "http://jenkins:8080"
+    username: "admin"
+    api_token: "${JENKINS_API_TOKEN}"
+

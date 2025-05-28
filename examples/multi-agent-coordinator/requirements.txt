@@ -1,0 +1,44 @@
+# Core dependencies
+asyncio-mqtt>=0.11.0
+aiohttp>=3.8.0
+networkx>=3.0
+psutil>=5.9.0
+pydantic>=2.0.0
+python-dateutil>=2.8.0
+
+# Machine Learning and Data Science
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+scipy>=1.10.0
+
+# Database and Storage
+asyncpg>=0.28.0
+redis>=4.5.0
+sqlalchemy>=2.0.0
+
+# Monitoring and Observability
+prometheus-client>=0.16.0
+structlog>=23.0.0
+
+# Development and Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+pre-commit>=3.0.0
+
+# Optional: Codegen SDK (when available)
+# codegen>=0.5.0
+
+# Optional: Container orchestration
+# kubernetes>=26.0.0
+# docker>=6.0.0
+
+# Optional: Cloud providers
+# boto3>=1.26.0  # AWS
+# google-cloud>=0.34.0  # GCP
+# azure-mgmt>=4.0.0  # Azure
+
