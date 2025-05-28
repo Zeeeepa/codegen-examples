@@ -1,0 +1,53 @@
+# Core Testing Framework
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.0.0
+pytest-mock>=3.12.0
+pytest-xdist>=3.5.0
+pytest-html>=4.1.0
+pytest-json-report>=1.5.0
+
+# Test Data & Fixtures
+factory-boy>=3.3.0
+faker>=22.0.0
+freezegun>=1.4.0
+
+# Integration Testing
+docker>=7.0.0
+docker-compose>=1.29.0
+requests>=2.31.0
+httpx>=0.26.0
+
+# Performance Testing
+locust>=2.20.0
+psutil>=5.9.0
+memory-profiler>=0.61.0
+
+# Security Testing
+bandit>=1.7.5
+safety>=3.0.0
+semgrep>=1.50.0
+
+# Database Testing
+pytest-postgresql>=5.0.0
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# Quality Metrics
+coverage>=7.4.0
+radon>=6.0.1
+xenon>=0.9.1
+flake8>=7.0.0
+mypy>=1.8.0
+
+# Monitoring & Reporting
+prometheus-client>=0.19.0
+grafana-api>=1.0.3
+jinja2>=3.1.0
+
+# Utilities
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+click>=8.1.0
+rich>=13.7.0
+

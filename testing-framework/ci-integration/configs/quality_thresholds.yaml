@@ -1,0 +1,46 @@
+# Quality Thresholds Configuration
+# These thresholds define the minimum quality standards for the codebase
+
+coverage:
+  line_coverage: 90.0
+  branch_coverage: 85.0
+  function_coverage: 95.0
+  
+performance:
+  max_response_time_ms: 500
+  min_throughput_rps: 100
+  max_memory_usage_mb: 512
+  max_cpu_usage_percent: 80
+  
+security:
+  max_high_vulnerabilities: 0
+  max_medium_vulnerabilities: 2
+  max_low_vulnerabilities: 10
+  
+code_quality:
+  max_complexity: 10
+  max_maintainability_index: 20
+  max_lines_per_function: 50
+  max_functions_per_class: 20
+  
+test_quality:
+  min_test_coverage: 90.0
+  max_test_execution_time_minutes: 30
+  max_flaky_test_percentage: 5.0
+  
+linting:
+  max_flake8_violations: 0
+  max_mypy_errors: 0
+  max_bandit_issues: 0
+  
+documentation:
+  min_docstring_coverage: 80.0
+  
+dependencies:
+  max_outdated_packages: 5
+  max_security_advisories: 0
+  
+build:
+  max_build_time_minutes: 10
+  max_docker_image_size_mb: 1024
+

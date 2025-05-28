@@ -1,0 +1,253 @@
+[
+  {
+    "id": "task_001",
+    "title": "Implement user authentication system",
+    "description": "Create a comprehensive user authentication system with OAuth2 support, multi-factor authentication, and session management.",
+    "status": "in_progress",
+    "priority": 4,
+    "assignee_id": "agent_001",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-16T14:22:00Z",
+    "metadata": {
+      "source": "github",
+      "category": "feature",
+      "estimated_hours": 24,
+      "tags": ["authentication", "security", "backend"],
+      "repository": "org/auth-service",
+      "branch": "feature/oauth2-implementation",
+      "pr_number": 123,
+      "acceptance_criteria": [
+        "Users can register with email and password",
+        "OAuth2 integration with Google and GitHub",
+        "MFA support with TOTP",
+        "Session management with JWT tokens",
+        "Password reset functionality"
+      ]
+    }
+  },
+  {
+    "id": "task_002",
+    "title": "Fix memory leak in data processing pipeline",
+    "description": "Investigate and fix memory leak occurring in the data processing pipeline when handling large datasets.",
+    "status": "pending",
+    "priority": 5,
+    "assignee_id": "agent_002",
+    "created_at": "2024-01-16T09:15:00Z",
+    "updated_at": "2024-01-16T09:15:00Z",
+    "metadata": {
+      "source": "monitoring",
+      "category": "bug_fix",
+      "estimated_hours": 8,
+      "tags": ["memory", "performance", "critical"],
+      "repository": "org/data-pipeline",
+      "branch": "hotfix/memory-leak",
+      "severity": "critical",
+      "affected_users": 1500,
+      "error_logs": [
+        "OutOfMemoryError in DataProcessor.process()",
+        "Memory usage exceeds 8GB threshold",
+        "GC overhead limit exceeded"
+      ]
+    }
+  },
+  {
+    "id": "task_003",
+    "title": "Code review: API endpoint refactoring",
+    "description": "Review the refactored API endpoints for the user management service, focusing on performance and security improvements.",
+    "status": "pending",
+    "priority": 3,
+    "assignee_id": "agent_003",
+    "created_at": "2024-01-16T11:45:00Z",
+    "updated_at": "2024-01-16T11:45:00Z",
+    "metadata": {
+      "source": "github",
+      "category": "code_review",
+      "estimated_hours": 4,
+      "tags": ["api", "refactoring", "review"],
+      "repository": "org/user-service",
+      "branch": "refactor/api-endpoints",
+      "pr_number": 156,
+      "files_changed": 12,
+      "lines_added": 245,
+      "lines_removed": 180,
+      "reviewers": ["senior_dev_001", "tech_lead_001"],
+      "complexity_score": 7.2
+    }
+  },
+  {
+    "id": "task_004",
+    "title": "Implement real-time notifications",
+    "description": "Add real-time notification system using WebSockets for instant updates on user actions and system events.",
+    "status": "completed",
+    "priority": 3,
+    "assignee_id": "agent_001",
+    "created_at": "2024-01-10T08:00:00Z",
+    "updated_at": "2024-01-15T16:30:00Z",
+    "metadata": {
+      "source": "linear",
+      "category": "feature",
+      "estimated_hours": 16,
+      "actual_hours": 18.5,
+      "tags": ["websockets", "notifications", "real-time"],
+      "repository": "org/notification-service",
+      "branch": "feature/websocket-notifications",
+      "pr_number": 134,
+      "started_at": "2024-01-11T09:00:00Z",
+      "completed_at": "2024-01-15T16:30:00Z",
+      "feature_flag": "realtime_notifications_v1"
+    }
+  },
+  {
+    "id": "task_005",
+    "title": "Database migration: add user preferences table",
+    "description": "Create and execute database migration to add user preferences table with proper indexing and constraints.",
+    "status": "in_progress",
+    "priority": 2,
+    "assignee_id": "agent_004",
+    "created_at": "2024-01-16T13:20:00Z",
+    "updated_at": "2024-01-16T15:10:00Z",
+    "metadata": {
+      "source": "manual",
+      "category": "database",
+      "estimated_hours": 6,
+      "tags": ["migration", "database", "schema"],
+      "repository": "org/user-service",
+      "branch": "migration/user-preferences",
+      "migration_version": "20240116_001",
+      "tables_affected": ["users", "user_preferences"],
+      "backup_required": true
+    }
+  },
+  {
+    "id": "task_006",
+    "title": "Security audit: API authentication",
+    "description": "Conduct comprehensive security audit of API authentication mechanisms and implement recommended improvements.",
+    "status": "pending",
+    "priority": 4,
+    "assignee_id": "security_agent_001",
+    "created_at": "2024-01-16T16:00:00Z",
+    "updated_at": "2024-01-16T16:00:00Z",
+    "metadata": {
+      "source": "security_scan",
+      "category": "security",
+      "estimated_hours": 12,
+      "tags": ["security", "audit", "authentication"],
+      "repository": "org/api-gateway",
+      "audit_scope": [
+        "JWT token validation",
+        "Rate limiting implementation",
+        "CORS configuration",
+        "Input validation",
+        "Error handling"
+      ],
+      "compliance_requirements": ["SOC2", "GDPR"]
+    }
+  },
+  {
+    "id": "task_007",
+    "title": "Performance optimization: database queries",
+    "description": "Optimize slow database queries identified in the performance monitoring dashboard.",
+    "status": "in_progress",
+    "priority": 3,
+    "assignee_id": "agent_002",
+    "created_at": "2024-01-15T14:30:00Z",
+    "updated_at": "2024-01-16T10:45:00Z",
+    "metadata": {
+      "source": "monitoring",
+      "category": "performance",
+      "estimated_hours": 10,
+      "tags": ["database", "optimization", "performance"],
+      "repository": "org/data-service",
+      "branch": "optimization/db-queries",
+      "slow_queries": [
+        "SELECT * FROM users WHERE created_at > ?",
+        "SELECT COUNT(*) FROM orders JOIN users ON ...",
+        "UPDATE user_stats SET last_login = ? WHERE ..."
+      ],
+      "target_improvement": "50% query time reduction"
+    }
+  },
+  {
+    "id": "task_008",
+    "title": "Documentation: API reference update",
+    "description": "Update API documentation to reflect recent changes and add examples for new endpoints.",
+    "status": "pending",
+    "priority": 2,
+    "assignee_id": "agent_005",
+    "created_at": "2024-01-16T12:00:00Z",
+    "updated_at": "2024-01-16T12:00:00Z",
+    "metadata": {
+      "source": "manual",
+      "category": "documentation",
+      "estimated_hours": 8,
+      "tags": ["documentation", "api", "examples"],
+      "repository": "org/api-docs",
+      "branch": "docs/api-reference-update",
+      "endpoints_to_document": [
+        "/api/v1/users/preferences",
+        "/api/v1/notifications/subscribe",
+        "/api/v1/auth/mfa/setup"
+      ],
+      "format": "OpenAPI 3.0"
+    }
+  },
+  {
+    "id": "task_009",
+    "title": "Test automation: E2E user journey",
+    "description": "Create automated end-to-end tests for critical user journeys including registration, login, and core features.",
+    "status": "completed",
+    "priority": 3,
+    "assignee_id": "qa_agent_001",
+    "created_at": "2024-01-12T09:00:00Z",
+    "updated_at": "2024-01-16T11:30:00Z",
+    "metadata": {
+      "source": "qa_planning",
+      "category": "testing",
+      "estimated_hours": 20,
+      "actual_hours": 22,
+      "tags": ["e2e", "automation", "testing"],
+      "repository": "org/e2e-tests",
+      "branch": "tests/user-journey-automation",
+      "test_scenarios": [
+        "User registration and email verification",
+        "Login with various authentication methods",
+        "Profile management and preferences",
+        "Core feature usage workflows"
+      ],
+      "test_framework": "Playwright",
+      "coverage": "85%"
+    }
+  },
+  {
+    "id": "task_010",
+    "title": "Infrastructure: monitoring setup",
+    "description": "Set up comprehensive monitoring and alerting for production services using Prometheus and Grafana.",
+    "status": "in_progress",
+    "priority": 4,
+    "assignee_id": "devops_agent_001",
+    "created_at": "2024-01-14T10:00:00Z",
+    "updated_at": "2024-01-16T14:00:00Z",
+    "metadata": {
+      "source": "infrastructure",
+      "category": "devops",
+      "estimated_hours": 16,
+      "tags": ["monitoring", "prometheus", "grafana", "alerts"],
+      "repository": "org/infrastructure",
+      "branch": "feature/monitoring-setup",
+      "services_to_monitor": [
+        "API Gateway",
+        "User Service",
+        "Data Pipeline",
+        "Notification Service"
+      ],
+      "metrics_to_track": [
+        "Response times",
+        "Error rates",
+        "Resource utilization",
+        "Business metrics"
+      ],
+      "alert_channels": ["slack", "email", "pagerduty"]
+    }
+  }
+]
+
