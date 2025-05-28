@@ -1,0 +1,28 @@
+# Database Dependencies for AI-Powered Development Workflow System
+
+# Core database drivers
+psycopg2-binary>=2.9.7
+asyncpg>=0.28.0
+
+# Configuration and utilities
+PyYAML>=6.0.1
+python-dotenv>=1.0.0
+
+# Testing dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-benchmark>=4.0.0
+
+# Performance monitoring
+psutil>=5.9.0
+
+# Optional: Advanced connection pooling
+# pgbouncer  # System package, not pip installable
+# patroni>=3.0.0  # For HA setups
+
+# Development dependencies (optional)
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+pre-commit>=3.3.0
+

@@ -1,0 +1,163 @@
+# Database Configuration for AI-Powered Development Workflow System
+# This file contains database connection and performance settings
+
+# Primary database connection
+host: localhost
+port: 5432
+database: workflow_db
+username: postgres
+password: ""
+ssl_mode: prefer
+
+# Connection pool settings
+min_connections: 5
+max_connections: 20
+max_idle_time: 300  # seconds
+max_lifetime: 3600  # seconds
+
+# Performance settings
+statement_timeout: 30000  # milliseconds
+idle_in_transaction_timeout: 10000  # milliseconds
+lock_timeout: 5000  # milliseconds
+
+# Monitoring settings
+log_slow_queries: true
+slow_query_threshold: 1.0  # seconds
+enable_query_logging: false
+
+# High availability settings
+read_replicas: []
+connection_retry_attempts: 3
+connection_retry_delay: 1.0
+
+# Environment-specific configurations
+environments:
+  development:
+    host: localhost
+    port: 5432
+    database: workflow_dev_db
+    min_connections: 2
+    max_connections: 10
+    enable_query_logging: true
+    
+  testing:
+    host: localhost
+    port: 5432
+    database: workflow_test_db
+    min_connections: 1
+    max_connections: 5
+    statement_timeout: 10000
+    
+  staging:
+    host: staging-db.example.com
+    port: 5432
+    database: workflow_staging_db
+    ssl_mode: require
+    min_connections: 5
+    max_connections: 15
+    read_replicas:
+      - host: staging-db-replica1.example.com
+        port: 5432
+        weight: 1
+      - host: staging-db-replica2.example.com
+        port: 5432
+        weight: 1
+    
+  production:
+    host: prod-db.example.com
+    port: 5432
+    database: workflow_prod_db
+    ssl_mode: require
+    min_connections: 10
+    max_connections: 50
+    max_idle_time: 600
+    statement_timeout: 60000
+    read_replicas:
+      - host: prod-db-replica1.example.com
+        port: 5432
+        weight: 2
+      - host: prod-db-replica2.example.com
+        port: 5432
+        weight: 2
+      - host: prod-db-replica3.example.com
+        port: 5432
+        weight: 1
+    
+# Backup and maintenance settings
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention_days: 30
+  compression: true
+  
+maintenance:
+  auto_vacuum: true
+  auto_analyze: true
+  vacuum_schedule: "0 3 * * 0"  # Weekly on Sunday at 3 AM
+  reindex_schedule: "0 4 1 * *"  # Monthly on 1st at 4 AM
+  
+# Monitoring and alerting
+monitoring:
+  enabled: true
+  metrics_collection_interval: 60  # seconds
+  health_check_interval: 30  # seconds
+  
+  alerts:
+    slow_query_threshold: 5.0  # seconds
+    connection_pool_usage_threshold: 0.8  # 80%
+    disk_usage_threshold: 0.85  # 85%
+    
+# Security settings
+security:
+  require_ssl: false
+  ssl_cert_path: ""
+  ssl_key_path: ""
+  ssl_ca_path: ""
+  
+  # Connection encryption
+  encrypt_connections: true
+  
+  # Query logging (be careful with sensitive data)
+  log_statement: "none"  # none, ddl, mod, all
+  log_min_duration_statement: 1000  # milliseconds
+  
+# Performance tuning
+performance:
+  # PostgreSQL-specific settings
+  shared_buffers: "256MB"
+  effective_cache_size: "1GB"
+  maintenance_work_mem: "64MB"
+  checkpoint_completion_target: 0.7
+  wal_buffers: "16MB"
+  default_statistics_target: 100
+  random_page_cost: 1.1
+  effective_io_concurrency: 200
+  
+  # Connection and query settings
+  max_connections: 100
+  work_mem: "4MB"
+  hash_mem_multiplier: 1.0
+  
+# Data archival settings
+archival:
+  enabled: true
+  
+  # Task archival
+  task_retention_days: 365
+  completed_task_retention_days: 90
+  failed_task_retention_days: 180
+  
+  # Execution archival
+  execution_retention_days: 90
+  successful_execution_retention_days: 30
+  failed_execution_retention_days: 180
+  
+  # Event archival
+  event_retention_days: 365
+  audit_event_retention_days: 1095  # 3 years
+  
+  # Archive destination
+  archive_to_s3: false
+  s3_bucket: ""
+  s3_prefix: "workflow_archive/"
+
