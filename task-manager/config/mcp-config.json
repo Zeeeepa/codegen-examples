@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "enhanced-task-manager": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "DATABASE_HOST": "localhost",
+        "DATABASE_PORT": "5432",
+        "DATABASE_NAME": "task_manager",
+        "DATABASE_USER": "task_manager_user",
+        "DATABASE_PASSWORD": "your_password_here",
+        "DATABASE_SSL": "false",
+        "CODEGEN_API_URL": "https://api.codegen.sh",
+        "CODEGEN_API_KEY": "your_codegen_api_key_here",
+        "CLAUDE_CODE_API_URL": "https://api.claude-code.com",
+        "CLAUDE_CODE_API_KEY": "your_claude_code_api_key_here",
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}
+
