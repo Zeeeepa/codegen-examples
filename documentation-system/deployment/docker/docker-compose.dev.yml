@@ -1,0 +1,256 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: codegen-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-codegen_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-codegen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./configs/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - codegen-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-codegen} -d ${POSTGRES_DB:-codegen_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: codegen-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - codegen-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "auth", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # MinIO S3-compatible storage
+  minio:
+    image: minio/minio:latest
+    container_name: codegen-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-codegen-access-key}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - codegen-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  # Task Manager Service
+  task-manager:
+    build:
+      context: ../../../
+      dockerfile: documentation-system/deployment/docker/Dockerfiles/task-manager.Dockerfile
+    container_name: codegen-task-manager
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codegen}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codegen_platform}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./logs/task-manager:/app/logs
+      - ./configs/task-manager:/app/config:ro
+    ports:
+      - "${EXTERNAL_PORT_TASK_MANAGER:-8001}:8001"
+    networks:
+      - codegen-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Webhook Orchestrator Service
+  webhook-orchestrator:
+    build:
+      context: ../../../
+      dockerfile: documentation-system/deployment/docker/Dockerfiles/webhook-orchestrator.Dockerfile
+    container_name: codegen-webhook-orchestrator
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-codegen}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-codegen_platform}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - TASK_MANAGER_URL=http://task-manager:8001
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./logs/webhook-orchestrator:/app/logs
+      - ./configs/webhook-orchestrator:/app/config:ro
+    ports:
+      - "${EXTERNAL_PORT_WEBHOOK_ORCHESTRATOR:-8002}:8002"
+    networks:
+      - codegen-network
+    depends_on:
+      task-manager:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Codegen Agent Service
+  codegen-agent:
+    build:
+      context: ../../../
+      dockerfile: documentation-system/deployment/docker/Dockerfiles/codegen-agent.Dockerfile
+    container_name: codegen-codegen-agent
+    environment:
+      - CODEGEN_API_KEY=${CODEGEN_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-3-sonnet-20240229}
+      - TASK_MANAGER_URL=http://task-manager:8001
+      - WEBHOOK_ORCHESTRATOR_URL=http://webhook-orchestrator:8002
+      - GITHUB_APP_ID=${GITHUB_APP_ID}
+      - GITHUB_PRIVATE_KEY_PATH=/app/secrets/github-private-key.pem
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./logs/codegen-agent:/app/logs
+      - ./configs/codegen-agent:/app/config:ro
+      - ./secrets:/app/secrets:ro
+    ports:
+      - "${EXTERNAL_PORT_CODEGEN_AGENT:-8003}:8003"
+    networks:
+      - codegen-network
+    depends_on:
+      webhook-orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Documentation Website
+  docs-website:
+    build:
+      context: ../../docs-website
+      dockerfile: ../deployment/docker/Dockerfiles/docs-website.Dockerfile
+    container_name: codegen-docs
+    environment:
+      - NODE_ENV=production
+      - API_BASE_URL=http://localhost:8001
+    ports:
+      - "${EXTERNAL_PORT_DOCS:-8080}:3000"
+    networks:
+      - codegen-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: codegen-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=30d'
+    volumes:
+      - ./configs/monitoring-configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "${EXTERNAL_PORT_PROMETHEUS:-9090}:9090"
+    networks:
+      - codegen-network
+    restart: unless-stopped
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    container_name: codegen-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./configs/monitoring-configs/grafana:/etc/grafana/provisioning:ro
+    ports:
+      - "${EXTERNAL_PORT_GRAFANA:-3000}:3000"
+    networks:
+      - codegen-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (Optional)
+  nginx:
+    image: nginx:alpine
+    container_name: codegen-nginx
+    volumes:
+      - ./configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./configs/nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - codegen-network
+    depends_on:
+      - task-manager
+      - webhook-orchestrator
+      - codegen-agent
+      - docs-website
+    restart: unless-stopped
+    profiles:
+      - production
+
+networks:
+  codegen-network:
+    driver: bridge
+    name: ${PLATFORM_NETWORK:-codegen-platform-network}
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
